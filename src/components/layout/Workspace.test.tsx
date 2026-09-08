@@ -59,7 +59,7 @@ describe('Workspace component', () => {
   it('renders Document Tray with upload button and empty queue state', () => {
     render(<Workspace />);
     expect(screen.getByText('Uploaded Documents')).toBeDefined();
-    expect(screen.getByRole('button', { name: /upload pdf/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /add pdfs/i })).toBeDefined();
   });
 
   it('shows empty-state hint when no documents are provided', () => {
@@ -82,7 +82,7 @@ describe('Workspace component', () => {
   it('triggers onUploadClick callback when upload button is clicked', () => {
     const handleUpload = vi.fn();
     render(<Workspace onUploadClick={handleUpload} />);
-    const uploadBtn = screen.getByRole('button', { name: /upload pdf/i });
+    const uploadBtn = screen.getByRole('button', { name: /add pdfs/i });
     fireEvent.click(uploadBtn);
     expect(handleUpload).toHaveBeenCalledTimes(1);
   });

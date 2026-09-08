@@ -168,7 +168,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             if (onUploadClick) onUploadClick();
           }}
         >
-          Upload PDF
+          + Add PDFs
         </Button>
       </section>
 

@@ -45,7 +45,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     <article className="doc-card" aria-label={`Document: ${document.name}`}>
       {/* Icon column */}
       <div className="doc-card-icon" aria-hidden="true">
-        <FileText size={20} />
+        <FileText size={16} />
       </div>
 
       {/* Metadata column */}
@@ -63,24 +63,26 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
       {/* Actions column */}
       <div className="doc-card-actions">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Move "${document.name}" up`}
-          disabled={isFirst}
-          onClick={() => onMoveUp(document.id)}
-        >
-          <ChevronUp size={14} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Move "${document.name}" down`}
-          disabled={isLast}
-          onClick={() => onMoveDown(document.id)}
-        >
-          <ChevronDown size={14} />
-        </Button>
+        <div className="doc-card-reorder">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Move "${document.name}" up`}
+            disabled={isFirst}
+            onClick={() => onMoveUp(document.id)}
+          >
+            <ChevronUp size={14} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Move "${document.name}" down`}
+            disabled={isLast}
+            onClick={() => onMoveDown(document.id)}
+          >
+            <ChevronDown size={14} />
+          </Button>
+        </div>
         <Button
           variant="ghost"
           size="sm"

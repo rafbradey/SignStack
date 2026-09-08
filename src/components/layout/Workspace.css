@@ -12,20 +12,21 @@
 
 /* Document Tray / Top Strip */
 .document-tray {
-  padding: var(--space-2) var(--space-6);
+  padding: var(--space-2) var(--space-4);
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-shrink: 0;
+  min-height: 0; /* prevent height growth */
 }
 
 .document-tray-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .document-tray-title {
@@ -38,19 +39,36 @@
 
 .document-tray-cards {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: var(--space-2);
-  overflow-y: auto;
-  max-height: 160px;
+  overflow-x: auto;
+  overflow-y: hidden;
   flex: 1;
-  padding-right: var(--space-1); /* space for scroll bar */
+  min-width: 0; /* allow flex item to shrink below content size */
+  padding: var(--space-1) 0;
+  scrollbar-width: thin; /* Firefox: thin scrollbar */
+}
+
+/* Webkit thin scrollbar for horizontal tray */
+.document-tray-cards::-webkit-scrollbar {
+  height: 4px;
+}
+
+.document-tray-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.document-tray-cards::-webkit-scrollbar-thumb {
+  background-color: var(--border-default);
+  border-radius: var(--radius-full);
 }
 
 .document-tray-empty-hint {
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-style: italic;
-  align-self: center;
+  white-space: nowrap;
 }
 
 /* Responsive View Switcher (Visible on mobile/tablet) */
