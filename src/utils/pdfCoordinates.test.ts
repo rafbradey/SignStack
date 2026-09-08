@@ -9,6 +9,7 @@ import {
   pdfRectToViewportRect,
   calculateOverlayViewportPosition,
   calculateOverlayPdfBounds,
+  calculateUpdatedOverlayPosition,
 } from './pdfCoordinates';
 import type { PageViewport } from '@/services/pdf';
 
@@ -230,6 +231,73 @@ describe('pdfCoordinates utilities', () => {
       expect(result.height).toBe(150);
       // At (0, 0) top-left: pdfY = 792 - 0 - 150 = 642
       expect(result.y).toBe(642);
+    });
+  });
+
+  describe('calculateUpdatedOverlayPosition', () => {
+    it('translates normalized position with deltas', () => {
+      const result = calculateUpdatedOverlayPosition({
+        initialPosition: { x: 0.1, y: 0.2 },
+        deltaX: 0.05,
+        deltaY: 0.1,
+      });
+
+      expect(result.x).toBeCloseTo(0.15);
+      expect(result.y).toBeCloseTo(0.3);
+    });
+
+    it('clamps to [0, 1] when bounds are omitted', () => {
+      const result = calculateUpdatedOverlayPosition({
+        initialPosition: { x: 0.1, y: 0.2 },
+        deltaX: -0.5,
+        deltaY: 1.5,
+      });
+
+      expect(result.x).toBe(0);
+      expect(result.y).toBe(1);
+    });
+
+    it('clamps within page bounds taking overlay dimensions into account', () => {
+      // Base page: 1000 x 800
+      // Overlay: 200 x 160 -> normWidth = 0.2, normHeight = 0.2
+      // Max X = 1 - 0.2 = 0.8
+      // Max Y = 1 - 0.2 = 0.8
+      const result = calculateUpdatedOverlayPosition({
+        initialPosition: { x: 0.7, y: 0.7 },
+        deltaX: 0.5,
+        deltaY: 0.5,
+        overlayBounds: { width: 200, height: 160 },
+        baseBounds: { width: 1000, height: 800 },
+      });
+
+      expect(result.x).toBeCloseTo(0.8);
+      expect(result.y).toBeCloseTo(0.8);
+    });
+
+    it('clamps to top-left (0, 0) when dragging negative with bounds', () => {
+      const result = calculateUpdatedOverlayPosition({
+        initialPosition: { x: 0.2, y: 0.2 },
+        deltaX: -0.5,
+        deltaY: -0.5,
+        overlayBounds: { width: 200, height: 160 },
+        baseBounds: { width: 1000, height: 800 },
+      });
+
+      expect(result.x).toBe(0);
+      expect(result.y).toBe(0);
+    });
+
+    it('allows translating full-size overlays (normWidth >= 1) across base canvas [0, 1]', () => {
+      const result = calculateUpdatedOverlayPosition({
+        initialPosition: { x: 0, y: 0 },
+        deltaX: 0.1,
+        deltaY: 0.2,
+        overlayBounds: { width: 1000, height: 800 },
+        baseBounds: { width: 1000, height: 800 },
+      });
+
+      expect(result.x).toBeCloseTo(0.1);
+      expect(result.y).toBeCloseTo(0.2);
     });
   });
 });

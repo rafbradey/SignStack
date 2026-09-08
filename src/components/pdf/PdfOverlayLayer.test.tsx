@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { PdfOverlayLayer } from './PdfOverlayLayer';
 import type { PDFDocumentProxy, PDFPageProxy } from '@/services/pdf';
 
@@ -166,5 +166,122 @@ describe('PdfOverlayLayer component', () => {
       name: 'Crop selection: 60% × 50%',
     });
     expect(cropBox).toBeDefined();
+  });
+
+  describe('Overlay dragging and keyboard positioning (Task 7.4)', () => {
+    it('supports pointer drag to translate overlay position across base document', () => {
+      const doc = createMockDoc(300, 300);
+      const onPositionChange = vi.fn();
+      const baseDimensions = { width: 1000, height: 1000 };
+
+      render(
+        <PdfOverlayLayer
+          document={doc}
+          pageNumber={1}
+          baseDimensions={baseDimensions}
+          normalizedPosition={{ x: 0.1, y: 0.1 }}
+          isDraggable={true}
+          onPositionChange={onPositionChange}
+        />,
+      );
+
+      const region = screen.getByRole('region', { name: 'Overlay page 1' });
+      expect(region.classList.contains('is-draggable')).toBe(true);
+
+      region.setPointerCapture = vi.fn();
+      region.releasePointerCapture = vi.fn();
+
+      // Start drag at (100, 100)
+      fireEvent.pointerDown(region, {
+        clientX: 100,
+        clientY: 100,
+        pointerId: 1,
+      });
+
+      // Move by +50px X, +100px Y on a 1000x1000 base canvas (+0.05 X, +0.10 Y)
+      fireEvent.pointerMove(region, {
+        clientX: 150,
+        clientY: 200,
+        pointerId: 1,
+      });
+
+      expect(onPositionChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          x: expect.closeTo(0.15, 2),
+          y: expect.closeTo(0.2, 2),
+        }),
+      );
+
+      // Finish drag
+      fireEvent.pointerUp(region, {
+        clientX: 150,
+        clientY: 200,
+        pointerId: 1,
+      });
+    });
+
+    it('supports keyboard arrow keys to nudge position', () => {
+      const doc = createMockDoc(300, 300);
+      const onPositionChange = vi.fn();
+      const baseDimensions = { width: 1000, height: 1000 };
+
+      render(
+        <PdfOverlayLayer
+          document={doc}
+          pageNumber={1}
+          baseDimensions={baseDimensions}
+          normalizedPosition={{ x: 0.2, y: 0.2 }}
+          isDraggable={true}
+          onPositionChange={onPositionChange}
+        />,
+      );
+
+      const region = screen.getByRole('region', { name: 'Overlay page 1' });
+
+      // ArrowRight nudges x by +0.01 (1%)
+      fireEvent.keyDown(region, { key: 'ArrowRight' });
+      expect(onPositionChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          x: expect.closeTo(0.21, 2),
+          y: expect.closeTo(0.2, 2),
+        }),
+      );
+
+      // Shift+ArrowDown nudges y by +0.05 (5%)
+      fireEvent.keyDown(region, { key: 'ArrowDown', shiftKey: true });
+      expect(onPositionChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          x: expect.closeTo(0.2, 2),
+          y: expect.closeTo(0.25, 2),
+        }),
+      );
+    });
+
+    it('disables dragging when isCropping is true', () => {
+      const doc = createMockDoc(300, 300);
+      const onPositionChange = vi.fn();
+      const baseDimensions = { width: 1000, height: 1000 };
+
+      render(
+        <PdfOverlayLayer
+          document={doc}
+          pageNumber={1}
+          baseDimensions={baseDimensions}
+          normalizedPosition={{ x: 0.1, y: 0.1 }}
+          cropRect={{ x: 0, y: 0, width: 1, height: 1 }}
+          isCropping={true}
+          isDraggable={true}
+          onPositionChange={onPositionChange}
+        />,
+      );
+
+      const region = screen.getByRole('region', { name: 'Overlay page 1' });
+      expect(region.classList.contains('is-draggable')).toBe(false);
+
+      fireEvent.pointerDown(region, { clientX: 100, clientY: 100, pointerId: 1 });
+      fireEvent.pointerMove(region, { clientX: 150, clientY: 150, pointerId: 1 });
+
+      expect(onPositionChange).not.toHaveBeenCalled();
+    });
   });
 });

@@ -18,6 +18,7 @@ import {
   Trash2,
   Crop,
   RotateCcw,
+  Move,
 } from 'lucide-react';
 import {
   UploadedDocument,
@@ -361,6 +362,27 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     },
     [activeOverlay],
   );
+
+  const handleOverlayPositionChange = useCallback(
+    (newPos: { x: number; y: number }) => {
+      if (!activeOverlay) return;
+      setOverlays((prev) =>
+        prev.map((o) =>
+          o.id === activeOverlay.id ? { ...o, position: newPos } : o,
+        ),
+      );
+    },
+    [activeOverlay],
+  );
+
+  const handleResetPosition = () => {
+    if (!activeOverlay) return;
+    setOverlays((prev) =>
+      prev.map((o) =>
+        o.id === activeOverlay.id ? { ...o, position: { x: 0, y: 0 } } : o,
+      ),
+    );
+  };
 
   const handleDimensionsChange = useCallback(
     (dims: PageDimensions) => {
@@ -715,10 +737,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       scale={scale * overlay.scale}
                       opacity={overlay.opacity}
                       position={renderPos}
+                      normalizedPosition={overlay.position}
+                      baseDimensions={pageDimensions ?? undefined}
                       rotation={overlay.rotation}
                       cropRect={overlay.cropRect}
                       isCropping={isCropping && overlay.id === activeOverlay?.id}
+                      isDraggable={!isCropping}
+                      isSelected={overlay.id === activeOverlay?.id}
                       onCropChange={handleCropChange}
+                      onPositionChange={handleOverlayPositionChange}
                     />
                   );
                 })}
@@ -940,6 +967,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       </Button>
                     )}
                   </div>
+
+                  {(activeOverlay.position.x !== 0 || activeOverlay.position.y !== 0) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Reset overlay position"
+                      title="Reset overlay position to top-left"
+                      onClick={handleResetPosition}
+                    >
+                      <Move size={12} />
+                    </Button>
+                  )}
 
                   <Button
                     variant="ghost"

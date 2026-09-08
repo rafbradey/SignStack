@@ -199,3 +199,55 @@ export function calculateOverlayPdfBounds(
     height: scaledHeight,
   };
 }
+
+export interface UpdateOverlayPositionOptions {
+  /** Initial normalized position [0, 1] before movement */
+  initialPosition: { x: number; y: number };
+  /** Normalized horizontal delta (pixel delta / rendered base width) */
+  deltaX: number;
+  /** Normalized vertical delta (pixel delta / rendered base height) */
+  deltaY: number;
+  /** Rendered dimensions of the overlay */
+  overlayBounds?: { width: number; height: number };
+  /** Rendered dimensions of the base document page */
+  baseBounds?: { width: number; height: number };
+}
+
+/**
+ * Calculates updated normalized position [0, 1] for an overlay on the base document page.
+ *
+ * If overlay and base page dimensions are provided, clamps the position such that
+ * the entire overlay remains within the base page boundaries.
+ * Otherwise, falls back to clamping top-left origin between 0 and 1.
+ */
+export function calculateUpdatedOverlayPosition({
+  initialPosition,
+  deltaX,
+  deltaY,
+  overlayBounds,
+  baseBounds,
+}: UpdateOverlayPositionOptions): { x: number; y: number } {
+  let maxX = 1;
+  let maxY = 1;
+
+  if (
+    overlayBounds &&
+    baseBounds &&
+    baseBounds.width > 0 &&
+    baseBounds.height > 0
+  ) {
+    const normOverlayWidth = overlayBounds.width / baseBounds.width;
+    const normOverlayHeight = overlayBounds.height / baseBounds.height;
+    maxX = normOverlayWidth < 1 ? Math.max(0, 1 - normOverlayWidth) : 1;
+    maxY = normOverlayHeight < 1 ? Math.max(0, 1 - normOverlayHeight) : 1;
+  }
+
+  const targetX = clamp(initialPosition.x + deltaX, 0, maxX);
+  const targetY = clamp(initialPosition.y + deltaY, 0, maxY);
+
+  return {
+    x: Math.round(targetX * 10000) / 10000,
+    y: Math.round(targetY * 10000) / 10000,
+  };
+}
+

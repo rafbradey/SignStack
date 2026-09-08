@@ -1160,6 +1160,85 @@ describe('Workspace component', () => {
         const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
         expect(overlayRegion.style.clipPath).toBe('inset(25% 15% 15% 25%)');
       });
+
+      describe('Overlay Positioning & Translation (Task 7.4)', () => {
+        it('supports keyboard nudging to move overlay and updates transform position', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+          render(<Workspace documents={[docMain, docOverlay]} />);
+
+          const select = screen.getByLabelText(
+            'Select overlay document',
+          ) as HTMLSelectElement;
+          fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'Overlay page 1' })).toBeDefined();
+          });
+
+          const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+          await waitFor(() => {
+            expect(overlayRegion.style.width).toBe('612px');
+          });
+
+          expect(overlayRegion.classList.contains('is-draggable')).toBe(true);
+
+          // ArrowRight nudges by +0.01
+          fireEvent.keyDown(overlayRegion, { key: 'ArrowRight' });
+
+          // Reset position button should appear once moved
+          await waitFor(() => {
+            expect(
+              screen.getByRole('button', { name: /reset overlay position/i }),
+            ).toBeDefined();
+          });
+
+          // Clicking Reset position button returns overlay to (0, 0)
+          const resetBtn = screen.getByRole('button', { name: /reset overlay position/i });
+          fireEvent.click(resetBtn);
+
+          // Once reset to (0, 0), the reset button is hidden
+          expect(
+            screen.queryByRole('button', { name: /reset overlay position/i }),
+          ).toBeNull();
+        });
+
+        it('supports pointer dragging to translate overlay across document', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+          render(<Workspace documents={[docMain, docOverlay]} />);
+
+          const select = screen.getByLabelText(
+            'Select overlay document',
+          ) as HTMLSelectElement;
+          fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'Overlay page 1' })).toBeDefined();
+          });
+
+          const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+          await waitFor(() => {
+            expect(overlayRegion.style.width).toBe('612px');
+          });
+
+          overlayRegion.setPointerCapture = vi.fn();
+          overlayRegion.releasePointerCapture = vi.fn();
+
+          fireEvent.pointerDown(overlayRegion, { clientX: 100, clientY: 100, pointerId: 1 });
+          fireEvent.pointerMove(overlayRegion, { clientX: 150, clientY: 150, pointerId: 1 });
+          fireEvent.pointerUp(overlayRegion, { clientX: 150, clientY: 150, pointerId: 1 });
+
+          // Expect Reset position button to be present
+          await waitFor(() => {
+            expect(
+              screen.getByRole('button', { name: /reset overlay position/i }),
+            ).toBeDefined();
+          });
+        });
+      });
     });
   });
 });

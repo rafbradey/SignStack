@@ -7,13 +7,34 @@
   top: 0;
   left: 0;
   z-index: 5;
-  pointer-events: none; /* Allows click-through until precision editor interactions */
+  pointer-events: none;
   user-select: none;
   transition: opacity var(--transition-fast);
   will-change: transform, opacity;
+}
+
+.pdf-overlay-layer.is-draggable {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.pdf-overlay-layer.is-draggable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pdf-overlay-layer.is-dragging {
+  cursor: grabbing;
+}
+
+.pdf-overlay-layer.is-selected {
+  outline: 1px dashed var(--primary);
+  outline-offset: 1px;
 }
 
 .pdf-overlay-canvas {
   display: block;
   max-width: none;
 }
+
