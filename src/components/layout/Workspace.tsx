@@ -1131,27 +1131,71 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           </div>
 
           <div className="pane-viewport">
-            <div className="viewport-empty-card">
-              <div
-                className="viewport-empty-icon"
-                style={{
-                  backgroundColor: 'var(--success-subtle)',
-                  color: 'var(--success-text)',
-                }}
-                aria-hidden="true"
-              >
-                <Eye size={26} />
+            {!mainDoc ? (
+              <div className="viewport-empty-card">
+                <div
+                  className="viewport-empty-icon"
+                  style={{
+                    backgroundColor: 'var(--success-subtle)',
+                    color: 'var(--success-text)',
+                  }}
+                  aria-hidden="true"
+                >
+                  <Eye size={26} />
+                </div>
+                <h3 className="viewport-empty-title">Live Composite Output</h3>
+                <p className="viewport-empty-description">
+                  Upload a PDF to view the live composite preview.
+                </p>
               </div>
-              <h3 className="viewport-empty-title">Live Composite Output</h3>
-              <p className="viewport-empty-description">
-                In <strong>Phase 8</strong>, the final composited document will
-                reflect your overlay edits in real time so you always know what
-                your downloaded PDF looks like.
-              </p>
-              <Badge variant="success" size="sm">
-                Awaiting Phase 8 (Result Preview)
-              </Badge>
-            </div>
+            ) : isDocLoading ? (
+              <div className="viewport-loading-state">
+                <Spinner size="lg" label="Rendering live preview..." />
+                <span className="viewport-loading-text">
+                  Rendering preview...
+                </span>
+              </div>
+            ) : docError ? (
+              <div className="viewport-error-state">
+                <Alert variant="danger" title="Unable to render preview">
+                  {docError}
+                </Alert>
+              </div>
+            ) : (
+              <PdfPageCanvas
+                document={pdfDoc}
+                pageNumber={safeCurrentPage}
+                scale={scale}
+                ariaLabel={`Result preview page ${safeCurrentPage}`}
+                className="result-preview-canvas"
+              >
+                {currentPageOverlays.map((overlay) => {
+                  const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
+                  const renderPos = pageDimensions
+                    ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
+                    : { x: 0, y: 0 };
+
+                  return (
+                    <PdfOverlayLayer
+                      key={`preview-${overlay.id}`}
+                      document={proxy}
+                      pageNumber={overlay.overlayPageNumber}
+                      scale={scale * overlay.scale}
+                      opacity={overlay.opacity}
+                      position={renderPos}
+                      normalizedPosition={overlay.position}
+                      baseDimensions={pageDimensions ?? undefined}
+                      rotation={overlay.rotation}
+                      cropRect={overlay.cropRect}
+                      isCropping={false}
+                      isDraggable={false}
+                      isSelected={false}
+                      ariaLabel={`Result preview overlay page ${overlay.overlayPageNumber}`}
+                    />
+                  );
+                })}
+              </PdfPageCanvas>
+            )}
           </div>
 
           <div className="pane-footer">
@@ -1162,7 +1206,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                   color: 'var(--text-secondary)',
                 }}
               >
-                Output: Ready • 0 Layers
+                {mainDoc
+                  ? `Output: Page ${safeCurrentPage} • ${currentPageOverlays.length} ${
+                      currentPageOverlays.length === 1 ? 'Overlay' : 'Overlays'
+                    }`
+                  : 'Output: No Document'}
               </span>
             </div>
             <div className="editor-control-group">

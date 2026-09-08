@@ -37,6 +37,8 @@ export interface PdfOverlayLayerProps {
   onCropChange?: (cropRect: NormalizedRect) => void;
   /** Callback invoked when user requests deletion via Delete/Backspace */
   onDelete?: () => void;
+  /** Optional accessible label override for the overlay region */
+  ariaLabel?: string;
   /** Additional CSS class names */
   className?: string;
 }
@@ -72,6 +74,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
   isCropping = false,
   onCropChange,
   onDelete,
+  ariaLabel,
   className = '',
 }) => {
   const { canvasRef, dimensions } = usePdfPage({
@@ -218,7 +221,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
       className={`pdf-overlay-layer ${canDrag ? 'is-draggable' : ''} ${isDragging ? 'is-dragging' : ''} ${isSelected ? 'is-selected' : ''} ${className}`.trim()}
       role="region"
       tabIndex={canDrag ? 0 : -1}
-      aria-label={`Overlay page ${pageNumber}`}
+      aria-label={ariaLabel ?? `Overlay page ${pageNumber}`}
       aria-roledescription={canDrag ? 'draggable overlay' : undefined}
       aria-description={canDrag ? `Position: ${posX}%, ${posY}%` : undefined}
       style={{

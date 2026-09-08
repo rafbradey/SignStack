@@ -1377,6 +1377,75 @@ describe('Workspace component', () => {
         });
       });
     });
+
+    describe('Result Preview Synchronization (Phase 8: Task 8.1)', () => {
+      it('renders clean composite preview canvas and overlay in Result Preview pane', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        // Both editor overlay and result preview overlay should be rendered
+        await waitFor(() => {
+          expect(screen.getByRole('region', { name: 'Overlay page 1' })).toBeDefined();
+          expect(
+            screen.getByRole('region', { name: /result preview overlay page 1/i }),
+          ).toBeDefined();
+        });
+
+        const previewOverlay = screen.getByRole('region', {
+          name: /result preview overlay page 1/i,
+        });
+        // Result preview overlay must NOT be draggable or have editing cursor
+        expect(previewOverlay.classList.contains('is-draggable')).toBe(false);
+        expect(previewOverlay.getAttribute('tabIndex')).toBe('-1');
+
+        // Result preview footer should display dynamic overlay count
+        expect(screen.getByText('Output: Page 1 • 1 Overlay')).toBeDefined();
+      });
+
+      it('synchronizes opacity, scale, and crop with Result Preview without showing handles', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', { name: /result preview overlay page 1/i }),
+          ).toBeDefined();
+        });
+
+        // Adjust opacity slider to 50%
+        const opacitySlider = screen.getByLabelText('Overlay opacity');
+        fireEvent.change(opacitySlider, { target: { value: '50' } });
+
+        const previewOverlay = screen.getByRole('region', {
+          name: /result preview overlay page 1/i,
+        });
+        expect(previewOverlay.style.opacity).toBe('0.5');
+
+        // Enter crop mode
+        fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+
+        // Crop handles should appear in Editor pane, but NEVER in Result Preview
+        const cropHandles = screen.getAllByRole('button', { name: /resize crop/i });
+        expect(cropHandles.length).toBe(4); // Only the 4 corner handles on the editor box
+
+        // Preview overlay has no crop handles inside it
+        expect(previewOverlay.querySelector('.crop-selection-box')).toBeNull();
+      });
+    });
   });
 });
 

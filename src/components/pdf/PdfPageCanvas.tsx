@@ -12,6 +12,8 @@ export interface PdfPageCanvasProps {
   pageNumber: number;
   /** Zoom scale (e.g. 1.0 = 100%) */
   scale?: number;
+  /** Optional accessible label override for the canvas container */
+  ariaLabel?: string;
   /** Optional rotation in degrees (0, 90, 180, 270) */
   rotation?: number;
   /** Additional CSS class names */
@@ -36,6 +38,7 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   pageNumber,
   scale = 1.0,
   rotation,
+  ariaLabel,
   className = '',
   onDimensionsChange,
   children,
@@ -61,7 +64,7 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
     <div
       className={`pdf-canvas-wrapper ${className}`.trim()}
       role="region"
-      aria-label={`PDF page ${pageNumber}`}
+      aria-label={ariaLabel ?? `PDF page ${pageNumber}`}
       style={{
         width: widthStyle,
         height: heightStyle,
