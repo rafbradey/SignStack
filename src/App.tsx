@@ -1,23 +1,16 @@
-import { useState } from 'react';
 import { Header, Workspace } from '@/components/layout';
 import { Alert } from '@/components/ui';
 import { useDocuments } from '@/hooks';
 
 export default function App() {
-  const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
   const {
     documents,
     validationErrors,
+    addFiles,
     removeDocument,
     reorderDocuments,
     clearErrors,
   } = useDocuments();
-
-  const handleUploadClick = () => {
-    setPhaseNotice(
-      'Document state management (Task 3.2) is active. The upload dropzone and file picker will be connected in Task 3.3.',
-    );
-  };
 
   return (
     <div
@@ -55,28 +48,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Transient Notification Banner */}
-      {phaseNotice && (
-        <div
-          style={{
-            padding: 'var(--space-2) var(--space-6)',
-            backgroundColor: 'var(--bg-canvas)',
-          }}
-        >
-          <Alert
-            variant="info"
-            title="Upload Pipeline Status"
-            onDismiss={() => setPhaseNotice(null)}
-          >
-            {phaseNotice}
-          </Alert>
-        </div>
-      )}
 
       {/* Dual-Pane Workspace (EDITOR | RESULT) */}
       <Workspace
         documents={documents}
-        onUploadClick={handleUploadClick}
+        addFiles={addFiles}
         onRemoveDocument={removeDocument}
         onReorderDocuments={reorderDocuments}
       />

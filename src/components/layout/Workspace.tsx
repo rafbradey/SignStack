@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { AddFilesResult } from '@/hooks';
 import { Badge, Button } from '@/components/ui';
 import {
   Upload,
@@ -23,18 +24,35 @@ export interface WorkspaceProps {
   documents?: UploadedDocument[];
   onRemoveDocument?: (id: string) => void;
   onReorderDocuments?: (startIndex: number, endIndex: number) => void;
+  /** Function to add files to document state */
+  addFiles?: (files: File[] | FileList) => Promise<AddFilesResult>;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
   onUploadClick,
   documents = [],
+  addFiles,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="workspace-container">
       {/* Top Document Tray */}
-      <section className="document-tray" aria-label="Document Queue">
+      <section
+        className="document-tray"
+        aria-label="Document Queue"
+        onDragOver={(e) => {
+          e.preventDefault();
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const files = e.dataTransfer.files;
+          if (files && addFiles) {
+            addFiles(files);
+          }
+        }}
+      >
         <div className="document-tray-header">
           <Badge variant="neutral" size="sm">
             <FileSpreadsheet size={12} />
@@ -57,11 +75,28 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           )}
         </div>
 
+        {/* Hidden file input */}
+        <input
+          type="file"
+          multiple
+          accept="application/pdf"
+          style={{ display: 'none' }}
+          ref={fileInputRef}
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && addFiles) {
+              addFiles(files);
+            }
+          }}
+        />
         <Button
           variant="primary"
           size="sm"
           leftIcon={<Upload size={14} />}
-          onClick={onUploadClick}
+          onClick={() => {
+            fileInputRef.current?.click();
+            if (onUploadClick) onUploadClick();
+          }}
         >
           Upload PDF
         </Button>
