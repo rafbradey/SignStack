@@ -221,8 +221,8 @@
 .pane-viewport {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: safe center;
+  justify-content: safe center;
   padding: var(--space-6);
   overflow: auto;
   background-color: var(--bg-canvas);

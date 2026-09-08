@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AddFilesResult } from '@/hooks';
 import { Badge, Button, Spinner, Alert } from '@/components/ui';
 import {
@@ -22,10 +22,38 @@ import { PdfPageCanvas } from '@/components/pdf';
 import { loadPdfDocument, type PDFDocumentProxy } from '@/services/pdf';
 import './Workspace.css';
 
-export const MIN_ZOOM = 0.5; // 50%
-export const MAX_ZOOM = 2.5; // 250%
-export const DEFAULT_ZOOM = 1.0; // 100%
-export const ZOOM_STEP = 0.25; // 25% step
+const MIN_ZOOM = 0.5; // 50%
+const MAX_ZOOM = 2.5; // 250%
+const DEFAULT_ZOOM = 1.0; // 100%
+const ZOOM_STEP = 0.25; // 25% step
+
+/**
+ * Calculates optimal scale factor so the entire PDF page and its black outline
+ * fit comfortably within the viewport without cutting off header or footer.
+ */
+function calculateFitScale(
+  viewport: HTMLElement,
+  dimensions: PageDimensions,
+): number {
+  const paddingH = 64; // 32px on each side for padding + outline buffer
+  const paddingV = 64;
+  const availWidth = viewport.clientWidth - paddingH;
+  const availHeight = viewport.clientHeight - paddingV;
+
+  if (availWidth <= 0 || availHeight <= 0) {
+    return DEFAULT_ZOOM;
+  }
+
+  const unscaledWidth = dimensions.width / dimensions.scale;
+  const unscaledHeight = dimensions.height / dimensions.scale;
+
+  if (unscaledWidth <= 0 || unscaledHeight <= 0) {
+    return DEFAULT_ZOOM;
+  }
+
+  const fit = Math.min(availWidth / unscaledWidth, availHeight / unscaledHeight);
+  return Math.round(clamp(fit, MIN_ZOOM, MAX_ZOOM) * 100) / 100;
+}
 
 export type WorkspaceTab = 'editor' | 'result';
 
@@ -105,6 +133,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  // Track whether the initial auto fit-to-view has executed for the current document
+  const initialFitDoneRef = useRef<boolean>(false);
+
   // When the selected main document changes, reset page, zoom, and dimension states
   const currentDocId = mainDoc ? mainDoc.id : null;
   const [prevDocId, setPrevDocId] = useState<string | null>(currentDocId);
@@ -113,6 +144,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setCurrentPage(1);
     setScale(DEFAULT_ZOOM);
     setPageDimensions(null);
+    initialFitDoneRef.current = false;
   }
 
   const [docState, setDocState] = useState<{
@@ -127,6 +159,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
   const totalPages = docState.pdfDoc?.numPages ?? 1;
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const handleDimensionsChange = useCallback((dims: PageDimensions) => {
+    setPageDimensions(dims);
+    // Automatically apply fit-to-view on initial page render so the entire page + black outline are visible
+    if (!initialFitDoneRef.current && viewportRef.current) {
+      if (
+        viewportRef.current.clientWidth > 100 &&
+        viewportRef.current.clientHeight > 100
+      ) {
+        const fit = calculateFitScale(viewportRef.current, dims);
+        initialFitDoneRef.current = true;
+        setScale(fit);
+      }
+    }
+  }, []);
 
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(1, prev - 1));
@@ -153,25 +200,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       setScale(DEFAULT_ZOOM);
       return;
     }
-    const viewport = viewportRef.current;
-    const padding = 48; // Total horizontal & vertical padding inside viewport
-    const availWidth = Math.max(100, viewport.clientWidth - padding);
-    const availHeight = Math.max(100, viewport.clientHeight - padding);
-
-    const unscaledWidth = pageDimensions.width / pageDimensions.scale;
-    const unscaledHeight = pageDimensions.height / pageDimensions.scale;
-
-    if (unscaledWidth <= 0 || unscaledHeight <= 0) {
-      setScale(DEFAULT_ZOOM);
-      return;
-    }
-
-    const fit = Math.min(
-      availWidth / unscaledWidth,
-      availHeight / unscaledHeight,
-    );
-    const clampedFit = Math.round(clamp(fit, MIN_ZOOM, MAX_ZOOM) * 100) / 100;
-    setScale(clampedFit);
+    const fit = calculateFitScale(viewportRef.current, pageDimensions);
+    setScale(fit);
   };
 
   const handleEditorKeyDown = (e: React.KeyboardEvent) => {
@@ -464,7 +494,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 document={pdfDoc}
                 pageNumber={safeCurrentPage}
                 scale={scale}
-                onDimensionsChange={setPageDimensions}
+                onDimensionsChange={handleDimensionsChange}
               />
             )}
           </div>

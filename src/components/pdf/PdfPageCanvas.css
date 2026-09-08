@@ -9,10 +9,13 @@
   justify-content: center;
   background-color: #ffffff;
   border-radius: var(--radius-sm);
+  /* Crisp black outline around the PDF page boundary */
+  outline: 1px solid #000000;
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 4px 24px rgba(0, 0, 0, 0.45),
+    0 1px 4px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  margin: auto;
   transition: box-shadow var(--transition-normal);
 }
 
