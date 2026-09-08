@@ -409,6 +409,14 @@
   user-select: none;
 }
 
+.overlay-crop-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-default);
+}
+
 /* Responsive Breakpoint: Tablet & Mobile (< 1024px) */
 @media (max-width: 1024px) {
   .workspace-panes {

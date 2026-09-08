@@ -16,6 +16,8 @@ import {
   Minus,
   Plus,
   Trash2,
+  Crop,
+  RotateCcw,
 } from 'lucide-react';
 import { UploadedDocument, PageDimensions, PageOverlay } from '@/types';
 import { clamp, calculateOverlayViewportPosition } from '@/utils';
@@ -107,6 +109,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   // PageOverlays: each overlay is tied to (mainDocumentId, mainPageNumber)
   const [overlays, setOverlays] = useState<PageOverlay[]>(initialOverlays ?? []);
   const [activeOverlayId, setActiveOverlayId] = useState<string | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   const handleSelectMainDoc = (id: string) => {
     setInternalMainDocId(id);
@@ -306,7 +309,40 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setOverlays((prev) => prev.filter((o) => o.id !== overlayId));
     if (activeOverlayId === overlayId) {
       setActiveOverlayId(null);
+      setIsCropping(false);
     }
+  };
+
+  const handleToggleCrop = () => {
+    if (!activeOverlay) return;
+    if (!isCropping) {
+      // Opening crop mode: if cropRect not yet initialized, set a default centered 60% box
+      if (!activeOverlay.cropRect) {
+        setOverlays((prev) =>
+          prev.map((o) =>
+            o.id === activeOverlay.id
+              ? {
+                  ...o,
+                  cropRect: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+                }
+              : o,
+          ),
+        );
+      }
+      setIsCropping(true);
+    } else {
+      setIsCropping(false);
+    }
+  };
+
+  const handleResetCrop = () => {
+    if (!activeOverlay) return;
+    setOverlays((prev) =>
+      prev.map((o) =>
+        o.id === activeOverlay.id ? { ...o, cropRect: undefined } : o,
+      ),
+    );
+    setIsCropping(false);
   };
 
   const handleDimensionsChange = useCallback(
@@ -663,6 +699,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       opacity={overlay.opacity}
                       position={renderPos}
                       rotation={overlay.rotation}
+                      cropRect={overlay.cropRect}
+                      isCropping={isCropping && overlay.id === activeOverlay?.id}
                     />
                   );
                 })}
@@ -860,6 +898,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                     >
                       <Plus size={10} />
                     </Button>
+                  </div>
+
+                  <div className="overlay-crop-controls">
+                    <Button
+                      variant={isCropping ? 'primary' : 'ghost'}
+                      size="sm"
+                      aria-label={isCropping ? 'Done cropping' : 'Crop overlay'}
+                      title={isCropping ? 'Done cropping' : 'Crop overlay region'}
+                      onClick={handleToggleCrop}
+                    >
+                      <Crop size={12} />
+                    </Button>
+                    {activeOverlay.cropRect && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Reset crop"
+                        title="Reset crop to full page"
+                        onClick={handleResetCrop}
+                      >
+                        <RotateCcw size={12} />
+                      </Button>
+                    )}
                   </div>
 
                   <Button

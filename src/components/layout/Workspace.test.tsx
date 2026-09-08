@@ -935,6 +935,121 @@ describe('Workspace component', () => {
           document.querySelector('.overlay-scale-value')?.textContent,
         ).toBe('95%');
       });
+
+      it('toggles crop mode and renders visual crop selection box with default region', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+        });
+
+        // Crop selection box should not be visible before clicking Crop
+        expect(screen.queryByRole('region', { name: /crop selection/i })).toBeNull();
+
+        // Click Crop overlay to enter crop editing mode
+        const cropBtn = screen.getByRole('button', { name: /crop overlay/i });
+        fireEvent.click(cropBtn);
+
+        // Crop selection box should now be rendered with default 60% x 60% region
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', {
+              name: 'Crop selection: 60% × 60%',
+            }),
+          ).toBeDefined();
+        });
+        // Button changes to "Done cropping"
+        expect(screen.getByRole('button', { name: /done cropping/i })).toBeDefined();
+        // Reset crop button should now be available
+        expect(screen.getByRole('button', { name: /reset crop/i })).toBeDefined();
+
+        // Click Done cropping to exit crop editing mode
+        const doneBtn = screen.getByRole('button', { name: /done cropping/i });
+        fireEvent.click(doneBtn);
+        expect(screen.queryByRole('region', { name: /crop selection/i })).toBeNull();
+        expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+      });
+
+      it('resets crop region when Reset crop button is clicked', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+        });
+
+        // Toggle crop on
+        fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+        expect(screen.getByRole('button', { name: /reset crop/i })).toBeDefined();
+
+        // Click Reset crop
+        fireEvent.click(screen.getByRole('button', { name: /reset crop/i }));
+
+        // Crop box is cleared and isCropping is reset
+        expect(screen.queryByRole('region', { name: /crop selection/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /reset crop/i })).toBeNull();
+        expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+      });
+
+      it('preserves crop region per-overlay across page changes', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        // Select overlay for Page 1
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+        });
+
+        // Set crop on Page 1
+        fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+        expect(
+          screen.getByRole('region', {
+            name: 'Crop selection: 60% × 60%',
+          }),
+        ).toBeDefined();
+
+        // Navigate to Page 2
+        const nextPageBtn = screen.getByRole('button', { name: /next page/i });
+        fireEvent.click(nextPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+
+        // Page 2 has no overlay selected yet -> Reset crop button should not exist
+        expect(screen.queryByRole('button', { name: /reset crop/i })).toBeNull();
+
+        // Navigate back to Page 1
+        const prevPageBtn = screen.getByRole('button', { name: /previous page/i });
+        fireEvent.click(prevPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+
+        // Overlay on Page 1 retained its cropRect so Reset crop is available
+        expect(screen.getByRole('button', { name: /reset crop/i })).toBeDefined();
+      });
     });
   });
 });

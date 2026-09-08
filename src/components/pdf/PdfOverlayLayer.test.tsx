@@ -127,4 +127,44 @@ describe('PdfOverlayLayer component', () => {
     });
     expect(792 > 612).toBe(true); // wider than tall
   });
+
+  it('applies clip-path when cropRect is defined and not in active crop editing mode', () => {
+    const doc = createMockDoc();
+    const cropRect = { x: 0.1, y: 0.2, width: 0.6, height: 0.5 };
+    render(
+      <PdfOverlayLayer
+        document={doc}
+        pageNumber={1}
+        cropRect={cropRect}
+        isCropping={false}
+      />,
+    );
+
+    const region = screen.getByRole('region', { name: 'Overlay page 1' });
+    // top = 20%, right = (1 - 0.7)*100% = 30%, bottom = (1 - 0.7)*100% = 30%, left = 10%
+    expect(region.style.clipPath).toBe('inset(20% 30% 30% 10%)');
+  });
+
+  it('renders CropSelectionBox when isCropping is true and cropRect is defined', () => {
+    const doc = createMockDoc();
+    const cropRect = { x: 0.1, y: 0.2, width: 0.6, height: 0.5 };
+    render(
+      <PdfOverlayLayer
+        document={doc}
+        pageNumber={1}
+        cropRect={cropRect}
+        isCropping={true}
+      />,
+    );
+
+    // Should NOT clip the overlay container during active cropping so user can see full context
+    const region = screen.getByRole('region', { name: 'Overlay page 1' });
+    expect(region.style.clipPath).toBe('');
+
+    // Should render CropSelectionBox
+    const cropBox = screen.getByRole('region', {
+      name: 'Crop selection: 60% × 50%',
+    });
+    expect(cropBox).toBeDefined();
+  });
 });

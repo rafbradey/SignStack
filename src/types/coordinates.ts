@@ -119,4 +119,7 @@ export interface PageOverlay {
   opacity: number;
   /** Page rotation in degrees (0, 90, 180, 270) */
   rotation: number;
+  /** Optional crop region in normalized coordinates [0, 1] relative to overlay page */
+  cropRect?: NormalizedRect;
 }
+
