@@ -1,0 +1,45 @@
+/* ==========================================================================
+   PdfPageCanvas — rendered PDF document page container
+   ========================================================================== */
+
+.pdf-canvas-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: var(--radius-sm);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal);
+}
+
+.pdf-page-canvas {
+  display: block;
+  max-width: none;
+  background-color: #ffffff;
+}
+
+/* Loading overlay */
+.pdf-canvas-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+
+/* Error overlay */
+.pdf-canvas-error-overlay {
+  position: absolute;
+  inset: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}

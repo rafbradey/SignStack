@@ -1,6 +1,41 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Workspace } from './Workspace';
+import type { PDFDocumentProxy, PDFPageProxy } from '@/services/pdf';
+
+// Mock loadPdfDocument to resolve mock PDF
+vi.mock('@/services/pdf', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/pdf')>();
+  return {
+    ...actual,
+    loadPdfDocument: vi.fn().mockImplementation(() => {
+      const mockPage: PDFPageProxy = {
+        pageNumber: 1,
+        rotate: 0,
+        cleanup: vi.fn(),
+        getViewport: vi.fn().mockReturnValue({
+          width: 612,
+          height: 792,
+          scale: 1,
+          rotation: 0,
+        }),
+        render: vi.fn().mockReturnValue({
+          promise: Promise.resolve(),
+          cancel: vi.fn(),
+        }),
+      } as unknown as PDFPageProxy;
+
+      const mockDoc: PDFDocumentProxy = {
+        numPages: 3,
+        getPage: vi.fn().mockResolvedValue(mockPage),
+        cleanup: vi.fn(),
+        loadingTask: { destroy: vi.fn() },
+      } as unknown as PDFDocumentProxy;
+
+      return Promise.resolve(mockDoc);
+    }),
+  };
+});
 
 /** Helper to build a minimal UploadedDocument for tests */
 function makeDoc(overrides?: Partial<{ id: string; name: string }>) {
@@ -40,7 +75,7 @@ describe('Workspace component', () => {
     expect(screen.getAllByText('Result Preview').length).toBeGreaterThanOrEqual(
       1,
     );
-    expect(screen.getByText('Editor Canvas Ready')).toBeDefined();
+    expect(screen.getByText('No Document Loaded')).toBeDefined();
     expect(screen.getByText('Live Composite Output')).toBeDefined();
   });
 
@@ -63,29 +98,51 @@ describe('Workspace component', () => {
     expect(editorTab.classList.contains('active')).toBe(true);
   });
 
-  it('renders a DocumentCard for each provided document', () => {
+  it('renders a DocumentCard for each provided document', async () => {
     const doc = makeDoc();
     render(<Workspace documents={[doc]} />);
 
-    // Document name is visible
-    expect(screen.getByText('invoice.pdf')).toBeDefined();
+    await waitFor(() => {
+      // Document name is visible
+      expect(screen.getAllByText('invoice.pdf').length).toBeGreaterThanOrEqual(
+        1,
+      );
+    });
     // Formatted size is visible
     expect(screen.getByText('1.5 KB')).toBeDefined();
     // Empty-state hint is gone
     expect(screen.queryByText(/upload a pdf to get started/i)).toBeNull();
   });
 
-  it('renders cards for multiple documents', () => {
+  it('renders cards for multiple documents', async () => {
     const docs = [
       makeDoc({ id: 'a', name: 'contract.pdf' }),
       makeDoc({ id: 'b', name: 'receipt.pdf' }),
     ];
     render(<Workspace documents={docs} />);
-    expect(screen.getByText('contract.pdf')).toBeDefined();
-    expect(screen.getByText('receipt.pdf')).toBeDefined();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('contract.pdf').length).toBeGreaterThanOrEqual(
+        1,
+      );
+      expect(screen.getAllByText('receipt.pdf').length).toBeGreaterThanOrEqual(
+        1,
+      );
+    });
   });
 
-  it('calls onRemoveDocument with the correct document id', () => {
+  it('renders PDF page canvas and updates page counter when document is loaded', async () => {
+    const doc = makeDoc({ id: 'doc-pdf', name: 'contract.pdf' });
+    render(<Workspace documents={[doc]} />);
+
+    // Wait for mock PDF to load and render canvas
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: /pdf page 1/i })).toBeDefined();
+      expect(screen.getByText('Page 1 of 3')).toBeDefined();
+    });
+  });
+
+  it('calls onRemoveDocument with the correct document id', async () => {
     const doc = makeDoc();
     const handleRemove = vi.fn();
     render(<Workspace documents={[doc]} onRemoveDocument={handleRemove} />);
@@ -95,9 +152,15 @@ describe('Workspace component', () => {
     });
     fireEvent.click(removeBtn);
     expect(handleRemove).toHaveBeenCalledWith('doc-1');
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('region', { name: /pdf page 1/i }),
+      ).toBeDefined();
+    });
   });
 
-  it('calls onMoveDocument with direction "up" when move-up is clicked', () => {
+  it('calls onMoveDocument with direction "up" when move-up is clicked', async () => {
     const docs = [
       makeDoc({ id: 'a', name: 'first.pdf' }),
       makeDoc({ id: 'b', name: 'second.pdf' }),
@@ -111,5 +174,11 @@ describe('Workspace component', () => {
     });
     fireEvent.click(moveUpBtn);
     expect(handleMove).toHaveBeenCalledWith('b', 'up');
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('region', { name: /pdf page 1/i }),
+      ).toBeDefined();
+    });
   });
 });

@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AddFilesResult } from '@/hooks';
-import { Badge, Button } from '@/components/ui';
+import { Badge, Button, Spinner, Alert } from '@/components/ui';
 import {
   Upload,
   Layers,
@@ -13,9 +13,12 @@ import {
   Download,
   Sliders,
   FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { UploadedDocument } from '@/types';
 import { DocumentCard } from './DocumentCard';
+import { PdfPageCanvas } from '@/components/pdf';
+import { loadPdfDocument, type PDFDocumentProxy } from '@/services/pdf';
 import './Workspace.css';
 
 export type WorkspaceTab = 'editor' | 'result';
@@ -40,6 +43,62 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Active base document is the first document in the tray
+  const baseDoc = documents.length > 0 ? documents[0] : null;
+
+  const [docState, setDocState] = useState<{
+    docId: string | null;
+    pdfDoc: PDFDocumentProxy | null;
+    error: string | null;
+  }>({
+    docId: null,
+    pdfDoc: null,
+    error: null,
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!baseDoc) {
+      return;
+    }
+
+    loadPdfDocument(baseDoc.file, baseDoc.id)
+      .then((doc) => {
+        if (!isCancelled) {
+          setDocState({
+            docId: baseDoc.id,
+            pdfDoc: doc,
+            error: null,
+          });
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          setDocState({
+            docId: baseDoc.id,
+            pdfDoc: null,
+            error:
+              err instanceof Error
+                ? err.message
+                : 'Failed to load PDF document.',
+          });
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [baseDoc]);
+
+  const isDocLoading = Boolean(
+    baseDoc && docState.docId !== baseDoc.id && !docState.error,
+  );
+  const pdfDoc =
+    baseDoc && docState.docId === baseDoc.id ? docState.pdfDoc : null;
+  const docError =
+    baseDoc && docState.docId === baseDoc.id ? docState.error : null;
 
   return (
     <div className="workspace-container">
@@ -154,6 +213,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               <Badge variant="neutral" size="sm">
                 Base
               </Badge>
+              {baseDoc && (
+                <span className="pane-document-name" title={baseDoc.name}>
+                  {baseDoc.name}
+                </span>
+              )}
             </div>
 
             <div className="pane-toolbar">
@@ -183,20 +247,39 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           </div>
 
           <div className="pane-viewport">
-            <div className="viewport-empty-card">
-              <div className="viewport-empty-icon" aria-hidden="true">
-                <Layers size={26} />
+            {!baseDoc ? (
+              <div className="viewport-empty-card">
+                <div className="viewport-empty-icon" aria-hidden="true">
+                  <FileText size={26} />
+                </div>
+                <h3 className="viewport-empty-title">No Document Loaded</h3>
+                <p className="viewport-empty-description">
+                  Upload a PDF to view and edit it in the workspace.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload a Document
+                </Button>
               </div>
-              <h3 className="viewport-empty-title">Editor Canvas Ready</h3>
-              <p className="viewport-empty-description">
-                In <strong>Phase 4</strong>, your selected base PDF will render
-                here for interactive cropping, overlay alignment, and opacity
-                adjustments.
-              </p>
-              <Badge variant="primary" size="sm">
-                Awaiting Phase 3 (Upload)
-              </Badge>
-            </div>
+            ) : isDocLoading ? (
+              <div className="viewport-loading-state">
+                <Spinner size="lg" label={`Loading ${baseDoc.name}...`} />
+                <span className="viewport-loading-text">
+                  Loading {baseDoc.name}...
+                </span>
+              </div>
+            ) : docError ? (
+              <div className="viewport-error-state">
+                <Alert variant="danger" title="Unable to render document">
+                  {docError}
+                </Alert>
+              </div>
+            ) : (
+              <PdfPageCanvas document={pdfDoc} pageNumber={1} />
+            )}
           </div>
 
           <div className="pane-footer">
@@ -209,7 +292,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               >
                 <ChevronLeft size={14} />
               </Button>
-              <span>Page 1 of 1</span>
+              <span>Page 1 of {pdfDoc?.numPages ?? 1}</span>
               <Button variant="ghost" size="sm" disabled aria-label="Next page">
                 <ChevronRight size={14} />
               </Button>
