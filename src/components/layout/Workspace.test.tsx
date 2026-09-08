@@ -8,17 +8,25 @@ vi.mock('@/services/pdf', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/pdf')>();
   return {
     ...actual,
-    loadPdfDocument: vi.fn().mockImplementation(() => {
+    loadPdfDocument: vi.fn().mockImplementation((file?: File) => {
+      const fileName = file?.name?.toLowerCase() ?? '';
+      const isLandscape = fileName.includes('landscape');
+      const isA4 = fileName.includes('a4');
+      const baseWidth = isLandscape ? 792 : isA4 ? 595.28 : 612;
+      const baseHeight = isLandscape ? 612 : isA4 ? 841.89 : 792;
+
       const mockPage: PDFPageProxy = {
         pageNumber: 1,
         rotate: 0,
         cleanup: vi.fn(),
-        getViewport: vi.fn().mockReturnValue({
-          width: 612,
-          height: 792,
-          scale: 1,
-          rotation: 0,
-        }),
+        getViewport: vi
+          .fn()
+          .mockImplementation(({ scale = 1 }: { scale?: number } = {}) => ({
+            width: baseWidth * scale,
+            height: baseHeight * scale,
+            scale,
+            rotation: 0,
+          })),
         render: vi.fn().mockReturnValue({
           promise: Promise.resolve(),
           cancel: vi.fn(),
@@ -685,44 +693,250 @@ describe('Workspace component', () => {
         ).toBeDefined();
         expect(screen.getByText('2/3')).toBeDefined();
 
-        // 6. Add two overlays to the same Main Page → both are preserved
-        const addOverlayBtn = screen.getByLabelText('Add another overlay');
-        fireEvent.click(addOverlayBtn);
+        // 6. Navigate back and forth to confirm persistence across pages
+        fireEvent.click(prevPageBtn); // back to Page 1
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+        expect(
+          screen.getByRole('region', { name: 'Overlay page 1' }).style.opacity,
+        ).toBe('0.5');
 
-        // Now select doc-sig as the second overlay on Page 2
+        fireEvent.click(nextPageBtn); // to Page 2
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+        expect(
+          screen.getByRole('region', { name: 'Overlay page 2' }),
+        ).toBeDefined();
+      });
+    });
+
+    describe('Overlay Scaling & Dimension Handling', () => {
+      it('defaults to 100% scale and allows adjusting between 25% and 200%', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('Overlay scale')).toBeDefined();
+        });
+
+        const scaleSlider = screen.getByLabelText(
+          'Overlay scale',
+        ) as HTMLInputElement;
+        const scaleVal = document.querySelector('.overlay-scale-value');
+        expect(scaleSlider.value).toBe('100');
+        expect(scaleVal?.textContent).toBe('100%');
+
+        // Adjust scale to 50%
+        fireEvent.change(scaleSlider, { target: { value: '50' } });
+        expect(scaleSlider.value).toBe('50');
+        expect(scaleVal?.textContent).toBe('50%');
+
+        // Adjust scale to 150%
+        fireEvent.change(scaleSlider, { target: { value: '150' } });
+        expect(scaleSlider.value).toBe('150');
+        expect(scaleVal?.textContent).toBe('150%');
+      });
+
+      it('preserves overlay aspect ratio and scales dimensions without distortion', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', { name: 'Overlay page 1' }),
+          ).toBeDefined();
+        });
+
+        const overlayRegion = screen.getByRole('region', {
+          name: 'Overlay page 1',
+        });
+
+        // Wait for async usePdfPage to resolve dimensions
+        await waitFor(() => {
+          expect(overlayRegion.style.width).toBeTruthy();
+        });
+
+        const initialWidth = parseFloat(overlayRegion.style.width);
+        const initialHeight = parseFloat(overlayRegion.style.height);
+
+        // Adjust scale to 50%
+        const scaleSlider = screen.getByLabelText('Overlay scale');
+        fireEvent.change(scaleSlider, { target: { value: '50' } });
+
+        await waitFor(() => {
+          const scaledWidth = parseFloat(overlayRegion.style.width);
+          const scaledHeight = parseFloat(overlayRegion.style.height);
+          expect(scaledWidth).toBeCloseTo(initialWidth * 0.5, 0);
+          expect(scaledHeight).toBeCloseTo(initialHeight * 0.5, 0);
+          // Aspect ratio remains unchanged
+          expect(scaledWidth / scaledHeight).toBeCloseTo(
+            initialWidth / initialHeight,
+            3,
+          );
+        });
+      });
+
+      it('handles page dimension differences (A4 overlay and landscape overlay) correctly', async () => {
+        const docMain = makeDoc({ id: 'doc-letter', name: 'letter-main.pdf' });
+        const docA4 = makeDoc({ id: 'doc-a4', name: 'a4-overlay.pdf' });
+        const docLandscape = makeDoc({
+          id: 'doc-land',
+          name: 'landscape-overlay.pdf',
+        });
+
+        render(<Workspace documents={[docMain, docA4, docLandscape]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+
+        // 1. Select A4 overlay
+        fireEvent.change(select, { target: { value: 'doc-a4' } });
+
+        await waitFor(() => {
+          const region = screen.getByRole('region', { name: 'Overlay page 1' });
+          expect(parseFloat(region.style.width)).toBeCloseTo(595.28, 0);
+          expect(parseFloat(region.style.height)).toBeCloseTo(841.89, 0);
+        });
+
+        // 2. Select Landscape overlay
+        fireEvent.change(select, { target: { value: 'doc-land' } });
+
+        await waitFor(() => {
+          const region = screen.getByRole('region', { name: 'Overlay page 1' });
+          expect(parseFloat(region.style.width)).toBeCloseTo(792, 0);
+          expect(parseFloat(region.style.height)).toBeCloseTo(612, 0);
+        });
+      });
+
+      it('maintains independent scale values per overlay across page navigation and layer switching', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay1 = makeDoc({ id: 'doc-sig', name: 'sig.pdf' });
+        const docOverlay2 = makeDoc({ id: 'doc-stamp', name: 'stamp.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay1, docOverlay2]} />);
+
+        // Page 1: Add overlay 1 and set scale to 50%
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
         fireEvent.change(select, { target: { value: 'doc-sig' } });
 
         await waitFor(() => {
-          // Both overlays on Page 2 exist in DOM
-          const regions = screen.getAllByRole('region', {
-            name: /Overlay page/,
-          });
-          expect(regions.length).toBe(2);
+          expect(screen.getByLabelText('Overlay scale')).toBeDefined();
         });
 
-        // 7. Verify each overlay retains its own properties
-        // The newly added overlay (layer 2) is active and layer indicator shows 2/2
-        expect(screen.getByText('2/2')).toBeDefined();
-        const prevLayerBtn = screen.getByLabelText('Previous layer');
-        expect(prevLayerBtn).toBeDefined();
+        const scaleSlider = screen.getByLabelText(
+          'Overlay scale',
+        ) as HTMLInputElement;
+        fireEvent.change(scaleSlider, { target: { value: '50' } });
+        expect(scaleSlider.value).toBe('50');
 
-        // Layer 2 opacity adjusted to 90%
-        fireEvent.change(screen.getByLabelText('Overlay opacity'), {
-          target: { value: '90' },
+        // Navigate to Page 2
+        const nextPageBtn = screen.getByLabelText('Next page');
+        fireEvent.click(nextPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+
+        // Add overlay on Page 2 with 150% scale
+        fireEvent.change(select, { target: { value: 'doc-stamp' } });
+        await waitFor(() => {
+          expect(screen.getByLabelText('Overlay scale')).toBeDefined();
+        });
+        fireEvent.change(screen.getByLabelText('Overlay scale'), {
+          target: { value: '150' },
         });
         expect(
-          (screen.getByLabelText('Overlay opacity') as HTMLInputElement).value,
-        ).toBe('90');
+          (screen.getByLabelText('Overlay scale') as HTMLInputElement).value,
+        ).toBe('150');
 
-        // Switch to Layer 1
-        fireEvent.click(prevLayerBtn);
-        expect(screen.getByText('1/2')).toBeDefined();
-        // Layer 1 retained its default 75% opacity
+        // Navigate back to Page 1
+        const prevPageBtn = screen.getByLabelText('Previous page');
+        fireEvent.click(prevPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+
+        // Overlay on Page 1 retained its 50% scale
         expect(
-          (screen.getByLabelText('Overlay opacity') as HTMLInputElement).value,
-        ).toBe('75');
+          (screen.getByLabelText('Overlay scale') as HTMLInputElement).value,
+        ).toBe('50');
+
+        // Navigate back to Page 2
+        fireEvent.click(nextPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+        // Overlay on Page 2 retained its 150% scale
+        expect(
+          (screen.getByLabelText('Overlay scale') as HTMLInputElement).value,
+        ).toBe('150');
+      });
+
+      it('adjusts opacity and scale using - and + stepper buttons', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('Increase opacity')).toBeDefined();
+        });
+
+        // Opacity defaults to 75% -> click + to increase to 80%
+        const incOpacityBtn = screen.getByLabelText('Increase opacity');
+        fireEvent.click(incOpacityBtn);
+        expect(
+          document.querySelector('.overlay-opacity-value')?.textContent,
+        ).toBe('80%');
+
+        // Click - twice to decrease to 70%
+        const decOpacityBtn = screen.getByLabelText('Decrease opacity');
+        fireEvent.click(decOpacityBtn);
+        fireEvent.click(decOpacityBtn);
+        expect(
+          document.querySelector('.overlay-opacity-value')?.textContent,
+        ).toBe('70%');
+
+        // Scale defaults to 100% -> click + to increase to 105%
+        const incScaleBtn = screen.getByLabelText('Increase scale');
+        fireEvent.click(incScaleBtn);
+        expect(
+          document.querySelector('.overlay-scale-value')?.textContent,
+        ).toBe('105%');
+
+        // Click - twice to decrease to 95%
+        const decScaleBtn = screen.getByLabelText('Decrease scale');
+        fireEvent.click(decScaleBtn);
+        fireEvent.click(decScaleBtn);
+        expect(
+          document.querySelector('.overlay-scale-value')?.textContent,
+        ).toBe('95%');
       });
     });
   });
 });
+
 

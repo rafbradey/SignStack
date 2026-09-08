@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { PdfOverlayLayer } from './PdfOverlayLayer';
 import type { PDFDocumentProxy, PDFPageProxy } from '@/services/pdf';
 
@@ -12,17 +12,22 @@ vi.mock('@/services/pdf', async (importOriginal) => {
   };
 });
 
-function createMockDoc(): PDFDocumentProxy {
+function createMockDoc(
+  baseWidth = 612,
+  baseHeight = 792,
+): PDFDocumentProxy {
   const mockPage: PDFPageProxy = {
     pageNumber: 1,
     rotate: 0,
     cleanup: vi.fn(),
-    getViewport: vi.fn().mockReturnValue({
-      width: 612,
-      height: 792,
-      scale: 1,
-      rotation: 0,
-    }),
+    getViewport: vi
+      .fn()
+      .mockImplementation(({ scale = 1 }: { scale?: number } = {}) => ({
+        width: baseWidth * scale,
+        height: baseHeight * scale,
+        scale,
+        rotation: 0,
+      })),
     render: vi.fn().mockReturnValue({
       promise: Promise.resolve(),
       cancel: vi.fn(),
@@ -66,5 +71,60 @@ describe('PdfOverlayLayer component', () => {
 
     const region = screen.getByRole('region', { name: 'Overlay page 2' });
     expect(region.style.transform).toBe('translate(50px, 100px)');
+  });
+
+  it('applies scale multiplier and preserves aspect ratio', async () => {
+    const doc = createMockDoc(612, 792);
+    const { rerender } = render(
+      <PdfOverlayLayer document={doc} pageNumber={1} scale={1.0} />,
+    );
+
+    const region = screen.getByRole('region', { name: 'Overlay page 1' });
+    await waitFor(() => {
+      expect(region.style.width).toBe('612px');
+      expect(region.style.height).toBe('792px');
+    });
+
+    // Scale to 50%
+    rerender(<PdfOverlayLayer document={doc} pageNumber={1} scale={0.5} />);
+    await waitFor(() => {
+      expect(region.style.width).toBe('306px');
+      expect(region.style.height).toBe('396px');
+    });
+    // Aspect ratio remains 612/792 = 306/396
+    expect(306 / 396).toBeCloseTo(612 / 792, 4);
+
+    // Scale to 150%
+    rerender(<PdfOverlayLayer document={doc} pageNumber={1} scale={1.5} />);
+    await waitFor(() => {
+      expect(region.style.width).toBe('918px');
+      expect(region.style.height).toBe('1188px');
+    });
+    expect(918 / 1188).toBeCloseTo(612 / 792, 4);
+  });
+
+  it('renders A4 and landscape overlay dimensions preserving intrinsic aspect ratio', async () => {
+    // A4 document (595.28 x 841.89)
+    const a4Doc = createMockDoc(595.28, 841.89);
+    const { rerender } = render(
+      <PdfOverlayLayer document={a4Doc} pageNumber={1} scale={1.0} />,
+    );
+    const a4Region = screen.getByRole('region', { name: 'Overlay page 1' });
+    await waitFor(() => {
+      expect(parseFloat(a4Region.style.width)).toBeCloseTo(595.28, 1);
+      expect(parseFloat(a4Region.style.height)).toBeCloseTo(841.89, 1);
+    });
+
+    // Landscape document (792 x 612)
+    const landscapeDoc = createMockDoc(792, 612);
+    rerender(
+      <PdfOverlayLayer document={landscapeDoc} pageNumber={1} scale={1.0} />,
+    );
+    const landRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+    await waitFor(() => {
+      expect(landRegion.style.width).toBe('792px');
+      expect(landRegion.style.height).toBe('612px');
+    });
+    expect(792 > 612).toBe(true); // wider than tall
   });
 });

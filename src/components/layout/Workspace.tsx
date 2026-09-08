@@ -13,6 +13,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Minus,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -292,29 +293,20 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     );
   };
 
+  const handleOverlayScaleChange = (newScale: number) => {
+    if (!activeOverlay) return;
+    setOverlays((prev) =>
+      prev.map((o) =>
+        o.id === activeOverlay.id ? { ...o, scale: newScale } : o,
+      ),
+    );
+  };
+
   const handleRemoveOverlay = (overlayId: string) => {
     setOverlays((prev) => prev.filter((o) => o.id !== overlayId));
     if (activeOverlayId === overlayId) {
       setActiveOverlayId(null);
     }
-  };
-
-  const handleAddOverlay = () => {
-    if (!currentDocId || overlayDocOptions.length === 0) return;
-    const defaultDoc = overlayDocOptions[0];
-    const newOverlay: PageOverlay = {
-      id: generateOverlayId(),
-      mainDocumentId: currentDocId,
-      mainPageNumber: safeCurrentPage,
-      overlayDocumentId: defaultDoc.id,
-      overlayPageNumber: 1,
-      position: { x: 0, y: 0 },
-      scale: 1.0,
-      opacity: 0.75,
-      rotation: 0,
-    };
-    setOverlays((prev) => [...prev, newOverlay]);
-    setActiveOverlayId(newOverlay.id);
   };
 
   const handleDimensionsChange = useCallback(
@@ -759,6 +751,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                     title="Overlay Opacity"
                   >
                     <span className="overlay-opacity-label">Opacity</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="overlay-stepper-btn"
+                      aria-label="Decrease opacity"
+                      title="Decrease opacity"
+                      disabled={Math.round(activeOverlay.opacity * 100) <= 10}
+                      onClick={() =>
+                        handleOverlayOpacityChange(
+                          Math.max(
+                            0.1,
+                            Math.round(activeOverlay.opacity * 100 - 5) / 100,
+                          ),
+                        )
+                      }
+                    >
+                      <Minus size={10} />
+                    </Button>
                     <input
                       type="range"
                       min="10"
@@ -774,65 +784,83 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                     <span className="overlay-opacity-value">
                       {Math.round(activeOverlay.opacity * 100)}%
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="overlay-stepper-btn"
+                      aria-label="Increase opacity"
+                      title="Increase opacity"
+                      disabled={Math.round(activeOverlay.opacity * 100) >= 100}
+                      onClick={() =>
+                        handleOverlayOpacityChange(
+                          Math.min(
+                            1.0,
+                            Math.round(activeOverlay.opacity * 100 + 5) / 100,
+                          ),
+                        )
+                      }
+                    >
+                      <Plus size={10} />
+                    </Button>
                   </div>
 
-                  {currentPageOverlays.length > 1 && (
-                    <div className="overlay-layer-switcher">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Previous layer"
-                        title="Previous overlay layer"
-                        disabled={
-                          currentPageOverlays.findIndex((o) => o.id === activeOverlay.id) <= 0
-                        }
-                        onClick={() => {
-                          const idx = currentPageOverlays.findIndex(
-                            (o) => o.id === activeOverlay.id,
-                          );
-                          if (idx > 0) {
-                            setActiveOverlayId(currentPageOverlays[idx - 1].id);
-                          }
-                        }}
-                      >
-                        <ChevronLeft size={10} />
-                      </Button>
-                      <span className="overlay-layer-label">
-                        {currentPageOverlays.findIndex((o) => o.id === activeOverlay.id) + 1}/
-                        {currentPageOverlays.length}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Next layer"
-                        title="Next overlay layer"
-                        disabled={
-                          currentPageOverlays.findIndex((o) => o.id === activeOverlay.id) >=
-                          currentPageOverlays.length - 1
-                        }
-                        onClick={() => {
-                          const idx = currentPageOverlays.findIndex(
-                            (o) => o.id === activeOverlay.id,
-                          );
-                          if (idx < currentPageOverlays.length - 1) {
-                            setActiveOverlayId(currentPageOverlays[idx + 1].id);
-                          }
-                        }}
-                      >
-                        <ChevronRight size={10} />
-                      </Button>
-                    </div>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Add another overlay"
-                    title="Add another overlay to this page"
-                    onClick={handleAddOverlay}
+                  <div
+                    className="overlay-scale-controls"
+                    title="Overlay Scale"
                   >
-                    <Plus size={12} />
-                  </Button>
+                    <span className="overlay-scale-label">Scale</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="overlay-stepper-btn"
+                      aria-label="Decrease scale"
+                      title="Decrease scale"
+                      disabled={Math.round(activeOverlay.scale * 100) <= 25}
+                      onClick={() =>
+                        handleOverlayScaleChange(
+                          Math.max(
+                            0.25,
+                            Math.round(activeOverlay.scale * 100 - 5) / 100,
+                          ),
+                        )
+                      }
+                    >
+                      <Minus size={10} />
+                    </Button>
+                    <input
+                      type="range"
+                      min="25"
+                      max="200"
+                      step="5"
+                      value={Math.round(activeOverlay.scale * 100)}
+                      className="overlay-scale-slider"
+                      aria-label="Overlay scale"
+                      onChange={(e) =>
+                        handleOverlayScaleChange(Number(e.target.value) / 100)
+                      }
+                    />
+                    <span className="overlay-scale-value">
+                      {Math.round(activeOverlay.scale * 100)}%
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="overlay-stepper-btn"
+                      aria-label="Increase scale"
+                      title="Increase scale"
+                      disabled={Math.round(activeOverlay.scale * 100) >= 200}
+                      onClick={() =>
+                        handleOverlayScaleChange(
+                          Math.min(
+                            2.0,
+                            Math.round(activeOverlay.scale * 100 + 5) / 100,
+                          ),
+                        )
+                      }
+                    >
+                      <Plus size={10} />
+                    </Button>
+                  </div>
 
                   <Button
                     variant="ghost"
