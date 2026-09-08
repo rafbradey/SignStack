@@ -156,6 +156,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [scale, setScale] = useState<number>(DEFAULT_ZOOM);
   const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const panStateRef = useRef<{
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
+    pointerId: number;
+  } | null>(null);
 
   // Track document ID for which initial auto fit-to-view has already executed
   const [fittedDocId, setFittedDocId] = useState<string | null>(null);
@@ -459,6 +468,98 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   };
 
   useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+
+      if (e.key === ' ' && !isInput && !e.repeat) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      } else if (e.key === 'Escape' && isCropping) {
+        e.preventDefault();
+        setIsCropping(false);
+      }
+    };
+
+    const handleGlobalKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false);
+      setIsPanning(false);
+      panStateRef.current = null;
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keyup', handleGlobalKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('keyup', handleGlobalKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isCropping]);
+
+  const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Pan if Spacebar is pressed (left click) or if middle-mouse button (button 1) is clicked
+    const shouldPan = isSpacePressed || e.button === 1;
+    if (!shouldPan || !viewportRef.current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Safe fallback
+    }
+
+    panStateRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startScrollLeft: viewportRef.current.scrollLeft,
+      startScrollTop: viewportRef.current.scrollTop,
+      pointerId: e.pointerId,
+    };
+    setIsPanning(true);
+  };
+
+  const handleViewportPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = panStateRef.current;
+    if (!state || state.pointerId !== e.pointerId || !viewportRef.current) return;
+
+    const deltaX = e.clientX - state.startX;
+    const deltaY = e.clientY - state.startY;
+
+    viewportRef.current.scrollLeft = state.startScrollLeft - deltaX;
+    viewportRef.current.scrollTop = state.startScrollTop - deltaY;
+  };
+
+  const handleViewportPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = panStateRef.current;
+    if (state && state.pointerId === e.pointerId) {
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          // Safe fallback
+        }
+      }
+      panStateRef.current = null;
+      setIsPanning(false);
+    }
+  };
+
+  useEffect(() => {
     let isCancelled = false;
 
     if (!mainDoc) {
@@ -685,7 +786,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             </div>
           </div>
 
-          <div className="pane-viewport" ref={viewportRef}>
+          <div
+            className={`pane-viewport ${isSpacePressed ? 'is-space-pressed' : ''} ${isPanning ? 'is-panning' : ''}`.trim()}
+            ref={viewportRef}
+            onPointerDown={handleViewportPointerDown}
+            onPointerMove={handleViewportPointerMove}
+            onPointerUp={handleViewportPointerUp}
+            onPointerCancel={handleViewportPointerUp}
+          >
             {!mainDoc ? (
               <div className="viewport-empty-card">
                 <div className="viewport-empty-icon" aria-hidden="true">
@@ -746,6 +854,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       isSelected={overlay.id === activeOverlay?.id}
                       onCropChange={handleCropChange}
                       onPositionChange={handleOverlayPositionChange}
+                      onDelete={() => handleRemoveOverlay(overlay.id)}
                     />
                   );
                 })}

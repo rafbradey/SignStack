@@ -1239,6 +1239,143 @@ describe('Workspace component', () => {
           });
         });
       });
+
+      describe('Viewport Pan & Precision Editor Polish (Task 7.5)', () => {
+        it('toggles is-space-pressed class on viewport when Space key is pressed and released', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          render(<Workspace documents={[docMain]} />);
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'PDF page 1' })).toBeDefined();
+          });
+
+          const viewport = screen.getByRole('region', { name: 'PDF page 1' }).parentElement!;
+          expect(viewport.classList.contains('is-space-pressed')).toBe(false);
+
+          // Space down
+          fireEvent.keyDown(window, { key: ' ' });
+          expect(viewport.classList.contains('is-space-pressed')).toBe(true);
+
+          // Space up
+          fireEvent.keyUp(window, { key: ' ' });
+          expect(viewport.classList.contains('is-space-pressed')).toBe(false);
+        });
+
+        it('pans the viewport when Spacebar is held and user drags with pointer', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          render(<Workspace documents={[docMain]} />);
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'PDF page 1' })).toBeDefined();
+          });
+
+          const viewport = screen.getByRole('region', { name: 'PDF page 1' }).parentElement!;
+          viewport.setPointerCapture = vi.fn();
+          viewport.releasePointerCapture = vi.fn();
+          viewport.scrollLeft = 100;
+          viewport.scrollTop = 100;
+
+          // Press Space
+          fireEvent.keyDown(window, { key: ' ' });
+
+          // Start drag at (200, 200)
+          fireEvent.pointerDown(viewport, { clientX: 200, clientY: 200, pointerId: 1, button: 0 });
+          expect(viewport.classList.contains('is-panning')).toBe(true);
+
+          // Drag by -50px X, -30px Y (moves viewport scroll by +50px X, +30px Y)
+          fireEvent.pointerMove(viewport, { clientX: 150, clientY: 170, pointerId: 1 });
+          expect(viewport.scrollLeft).toBe(150);
+          expect(viewport.scrollTop).toBe(130);
+
+          // Release drag
+          fireEvent.pointerUp(viewport, { clientX: 150, clientY: 170, pointerId: 1 });
+          expect(viewport.classList.contains('is-panning')).toBe(false);
+        });
+
+        it('pans the viewport with middle-mouse click drag without needing Spacebar', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          render(<Workspace documents={[docMain]} />);
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'PDF page 1' })).toBeDefined();
+          });
+
+          const viewport = screen.getByRole('region', { name: 'PDF page 1' }).parentElement!;
+          viewport.setPointerCapture = vi.fn();
+          viewport.releasePointerCapture = vi.fn();
+          viewport.scrollLeft = 50;
+          viewport.scrollTop = 50;
+
+          // Middle mouse button is button: 1
+          fireEvent.pointerDown(viewport, { clientX: 100, clientY: 100, pointerId: 2, button: 1 });
+          expect(viewport.classList.contains('is-panning')).toBe(true);
+
+          // Drag to (80, 70) -> dx = -20, dy = -30
+          fireEvent.pointerMove(viewport, { clientX: 80, clientY: 70, pointerId: 2 });
+          expect(viewport.scrollLeft).toBe(70);
+          expect(viewport.scrollTop).toBe(80);
+
+          fireEvent.pointerUp(viewport, { clientX: 80, clientY: 70, pointerId: 2 });
+          expect(viewport.classList.contains('is-panning')).toBe(false);
+        });
+
+        it('exits active crop mode when Escape key is pressed', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+          render(<Workspace documents={[docMain, docOverlay]} />);
+
+          const select = screen.getByLabelText(
+            'Select overlay document',
+          ) as HTMLSelectElement;
+          fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+          await waitFor(() => {
+            expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+          });
+
+          // Enter crop mode
+          fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+
+          await waitFor(() => {
+            expect(screen.getByRole('button', { name: /done cropping/i })).toBeDefined();
+          });
+
+          // Press Escape globally
+          fireEvent.keyDown(window, { key: 'Escape' });
+
+          // Should exit crop mode
+          await waitFor(() => {
+            expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+          });
+        });
+
+        it('removes overlay when Delete key is pressed on focused overlay', async () => {
+          const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+          const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+          render(<Workspace documents={[docMain, docOverlay]} />);
+
+          const select = screen.getByLabelText(
+            'Select overlay document',
+          ) as HTMLSelectElement;
+          fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+          await waitFor(() => {
+            expect(screen.getByRole('region', { name: 'Overlay page 1' })).toBeDefined();
+          });
+
+          const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+
+          // Press Delete on overlay
+          fireEvent.keyDown(overlayRegion, { key: 'Delete' });
+
+          // Overlay should now be removed
+          await waitFor(() => {
+            expect(screen.queryByRole('region', { name: 'Overlay page 1' })).toBeNull();
+          });
+        });
+      });
     });
   });
 });

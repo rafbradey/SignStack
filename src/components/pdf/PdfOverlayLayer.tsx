@@ -35,6 +35,8 @@ export interface PdfOverlayLayerProps {
   isCropping?: boolean;
   /** Callback invoked when crop rectangle is resized */
   onCropChange?: (cropRect: NormalizedRect) => void;
+  /** Callback invoked when user requests deletion via Delete/Backspace */
+  onDelete?: () => void;
   /** Additional CSS class names */
   className?: string;
 }
@@ -69,6 +71,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
   cropRect,
   isCropping = false,
   onCropChange,
+  onDelete,
   className = '',
 }) => {
   const { canvasRef, dimensions } = usePdfPage({
@@ -147,6 +150,13 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && onDelete && !isCropping) {
+        e.preventDefault();
+        e.stopPropagation();
+        onDelete();
+        return;
+      }
+
       if (!canDrag || !onPositionChange) return;
 
       const step = e.shiftKey ? 0.05 : 0.01;
@@ -183,7 +193,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
 
       onPositionChange(newPos);
     },
-    [baseDimensions, canDrag, dimensions, normalizedPosition, onPositionChange],
+    [baseDimensions, canDrag, dimensions, isCropping, normalizedPosition, onDelete, onPositionChange],
   );
 
   if (!document) {

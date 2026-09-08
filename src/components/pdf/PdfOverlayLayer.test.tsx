@@ -283,5 +283,43 @@ describe('PdfOverlayLayer component', () => {
 
       expect(onPositionChange).not.toHaveBeenCalled();
     });
+
+    it('triggers onDelete when Delete or Backspace key is pressed and not in crop mode', () => {
+      const doc = createMockDoc(300, 300);
+      const onDelete = vi.fn();
+
+      const { rerender } = render(
+        <PdfOverlayLayer
+          document={doc}
+          pageNumber={1}
+          isDraggable={true}
+          onDelete={onDelete}
+        />,
+      );
+
+      const region = screen.getByRole('region', { name: 'Overlay page 1' });
+
+      // Delete key
+      fireEvent.keyDown(region, { key: 'Delete' });
+      expect(onDelete).toHaveBeenCalledTimes(1);
+
+      // Backspace key
+      fireEvent.keyDown(region, { key: 'Backspace' });
+      expect(onDelete).toHaveBeenCalledTimes(2);
+
+      // Should NOT trigger onDelete if in crop mode
+      rerender(
+        <PdfOverlayLayer
+          document={doc}
+          pageNumber={1}
+          isCropping={true}
+          isDraggable={true}
+          onDelete={onDelete}
+        />,
+      );
+
+      fireEvent.keyDown(region, { key: 'Delete' });
+      expect(onDelete).toHaveBeenCalledTimes(2);
+    });
   });
 });

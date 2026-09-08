@@ -230,6 +230,24 @@
   background-size: 24px 24px;
 }
 
+.pane-viewport.is-space-pressed {
+  cursor: grab !important;
+}
+
+.pane-viewport.is-space-pressed * {
+  cursor: grab !important;
+}
+
+.pane-viewport.is-panning {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.pane-viewport.is-panning * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 /* Viewport Loading & Error States */
 .viewport-loading-state {
   display: flex;
