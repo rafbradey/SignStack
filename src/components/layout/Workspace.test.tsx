@@ -420,6 +420,51 @@ describe('Workspace component', () => {
         ).toBeDefined();
       });
     });
+
+    it('calculates fit scale dynamically when viewport has measurable bounds', async () => {
+      const doc = makeDoc({ id: 'doc-auto-fit', name: 'autofit.pdf' });
+      
+      // Mock clientWidth and clientHeight on HTMLElement prototype for this test
+      const originalClientWidth = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'clientWidth',
+      );
+      const originalClientHeight = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'clientHeight',
+      );
+
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+        configurable: true,
+        value: 676, // 676 - 64 padding = 612 avail width (matches 612 unscaled = 100%)
+      });
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        value: 856, // 856 - 64 padding = 792 avail height (matches 792 unscaled = 100%)
+      });
+
+      try {
+        render(<Workspace documents={[doc]} />);
+        await waitFor(() => {
+          expect(screen.getByText('100%')).toBeDefined();
+        });
+      } finally {
+        if (originalClientWidth) {
+          Object.defineProperty(
+            HTMLElement.prototype,
+            'clientWidth',
+            originalClientWidth,
+          );
+        }
+        if (originalClientHeight) {
+          Object.defineProperty(
+            HTMLElement.prototype,
+            'clientHeight',
+            originalClientHeight,
+          );
+        }
+      }
+    });
   });
 });
 

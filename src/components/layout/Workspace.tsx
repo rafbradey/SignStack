@@ -133,8 +133,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Track whether the initial auto fit-to-view has executed for the current document
-  const initialFitDoneRef = useRef<boolean>(false);
+  // Track document ID for which initial auto fit-to-view has already executed
+  const [fittedDocId, setFittedDocId] = useState<string | null>(null);
 
   // When the selected main document changes, reset page, zoom, and dimension states
   const currentDocId = mainDoc ? mainDoc.id : null;
@@ -144,7 +144,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setCurrentPage(1);
     setScale(DEFAULT_ZOOM);
     setPageDimensions(null);
-    initialFitDoneRef.current = false;
   }
 
   const [docState, setDocState] = useState<{
@@ -160,20 +159,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const totalPages = docState.pdfDoc?.numPages ?? 1;
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
-  const handleDimensionsChange = useCallback((dims: PageDimensions) => {
-    setPageDimensions(dims);
-    // Automatically apply fit-to-view on initial page render so the entire page + black outline are visible
-    if (!initialFitDoneRef.current && viewportRef.current) {
-      if (
-        viewportRef.current.clientWidth > 100 &&
-        viewportRef.current.clientHeight > 100
-      ) {
-        const fit = calculateFitScale(viewportRef.current, dims);
-        initialFitDoneRef.current = true;
-        setScale(fit);
+  const handleDimensionsChange = useCallback(
+    (dims: PageDimensions) => {
+      setPageDimensions(dims);
+      // Automatically apply fit-to-view on initial page render so the entire page + black outline are visible
+      if (currentDocId && fittedDocId !== currentDocId && viewportRef.current) {
+        if (
+          viewportRef.current.clientWidth > 100 &&
+          viewportRef.current.clientHeight > 100
+        ) {
+          const fit = calculateFitScale(viewportRef.current, dims);
+          setFittedDocId(currentDocId);
+          setScale(fit);
+        }
       }
-    }
-  }, []);
+    },
+    [currentDocId, fittedDocId],
+  );
 
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(1, prev - 1));
