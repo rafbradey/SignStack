@@ -1,12 +1,12 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { NormalizedRect } from '@/types';
-import { resizeCropRect, CropHandle } from '@/utils';
+import { resizeCropRect, moveCropRect, CropHandle } from '@/utils';
 import './CropSelectionBox.css';
 
 export interface CropSelectionBoxProps {
   /** Normalized crop rectangle in range [0, 1] relative to overlay page */
   cropRect: NormalizedRect;
-  /** Callback invoked when the user resizes the crop region */
+  /** Callback invoked when the user resizes or moves the crop region */
   onChange?: (cropRect: NormalizedRect) => void;
   /** Whether crop editing handles and outline are active */
   isEditing?: boolean;
@@ -14,8 +14,17 @@ export interface CropSelectionBoxProps {
   className?: string;
 }
 
-interface DragState {
+interface ResizeDragState {
   handle: CropHandle;
+  startX: number;
+  startY: number;
+  initialRect: NormalizedRect;
+  containerWidth: number;
+  containerHeight: number;
+  pointerId: number;
+}
+
+interface MoveDragState {
   startX: number;
   startY: number;
   initialRect: NormalizedRect;
@@ -30,6 +39,7 @@ interface DragState {
  * Displays:
  * - High-contrast selection boundary highlighting the cropped region
  * - Interactive corner resize handles (NW, NE, SE, SW)
+ * - Draggable body for translating/moving the crop region across the page
  * - Semi-transparent scrim mask indicating portions outside the crop
  * - Dimension percentage badge
  */
@@ -40,8 +50,10 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<DragState | null>(null);
+  const resizeDragStateRef = useRef<ResizeDragState | null>(null);
+  const moveDragStateRef = useRef<MoveDragState | null>(null);
   const [activeHandle, setActiveHandle] = useState<CropHandle | null>(null);
+  const [isDraggingBox, setIsDraggingBox] = useState(false);
 
   const left = `${Math.round(cropRect.x * 10000) / 100}%`;
   const top = `${Math.round(cropRect.y * 10000) / 100}%`;
@@ -51,7 +63,10 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
   const widthPct = Math.round(cropRect.width * 100);
   const heightPct = Math.round(cropRect.height * 100);
 
-  const handlePointerDown = useCallback(
+  // --------------------------------------------------------------------------
+  // Resize interaction handlers
+  // --------------------------------------------------------------------------
+  const handleResizePointerDown = useCallback(
     (e: React.PointerEvent<HTMLSpanElement>, handle: CropHandle) => {
       if (!isEditing) return;
 
@@ -70,7 +85,7 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
         // Safe fallback for environments where setPointerCapture may not be available
       }
 
-      dragStateRef.current = {
+      resizeDragStateRef.current = {
         handle,
         startX: e.clientX,
         startY: e.clientY,
@@ -85,9 +100,9 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
     [cropRect, isEditing],
   );
 
-  const handlePointerMove = useCallback(
+  const handleResizePointerMove = useCallback(
     (e: React.PointerEvent<HTMLSpanElement>) => {
-      const state = dragStateRef.current;
+      const state = resizeDragStateRef.current;
       if (!state || state.pointerId !== e.pointerId) return;
 
       const deltaX = (e.clientX - state.startX) / state.containerWidth;
@@ -105,8 +120,8 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
     [onChange],
   );
 
-  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLSpanElement>) => {
-    const state = dragStateRef.current;
+  const handleResizePointerUp = useCallback((e: React.PointerEvent<HTMLSpanElement>) => {
+    const state = resizeDragStateRef.current;
     if (state && state.pointerId === e.pointerId) {
       if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
         try {
@@ -115,12 +130,12 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
           // Safe fallback
         }
       }
-      dragStateRef.current = null;
+      resizeDragStateRef.current = null;
       setActiveHandle(null);
     }
   }, []);
 
-  const handleKeyDown = useCallback(
+  const handleResizeKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLSpanElement>, handle: CropHandle) => {
       if (!isEditing || !onChange) return;
 
@@ -159,21 +174,138 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
     [cropRect, isEditing, onChange],
   );
 
+  // --------------------------------------------------------------------------
+  // Move interaction handlers
+  // --------------------------------------------------------------------------
+  const handleBoxPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isEditing) return;
+      if (e.target !== e.currentTarget) return;
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
+
+      moveDragStateRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        initialRect: cropRect,
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+        pointerId: e.pointerId,
+      };
+
+      setIsDraggingBox(true);
+    },
+    [cropRect, isEditing],
+  );
+
+  const handleBoxPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const state = moveDragStateRef.current;
+      if (!state || state.pointerId !== e.pointerId) return;
+
+      const deltaX = (e.clientX - state.startX) / state.containerWidth;
+      const deltaY = (e.clientY - state.startY) / state.containerHeight;
+
+      const nextRect = moveCropRect({
+        initialRect: state.initialRect,
+        deltaX,
+        deltaY,
+      });
+
+      onChange?.(nextRect);
+    },
+    [onChange],
+  );
+
+  const handleBoxPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const state = moveDragStateRef.current;
+    if (state && state.pointerId === e.pointerId) {
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          // Safe fallback
+        }
+      }
+      moveDragStateRef.current = null;
+      setIsDraggingBox(false);
+    }
+  }, []);
+
+  const handleBoxKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!isEditing || !onChange) return;
+      if (e.target !== e.currentTarget) return;
+
+      const step = e.shiftKey ? 0.05 : 0.01;
+      let deltaX = 0;
+      let deltaY = 0;
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          deltaX = -step;
+          break;
+        case 'ArrowRight':
+          deltaX = step;
+          break;
+        case 'ArrowUp':
+          deltaY = -step;
+          break;
+        case 'ArrowDown':
+          deltaY = step;
+          break;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      const nextRect = moveCropRect({
+        initialRect: cropRect,
+        deltaX,
+        deltaY,
+      });
+
+      onChange(nextRect);
+    },
+    [cropRect, isEditing, onChange],
+  );
+
   return (
     <div
       ref={containerRef}
       className={`crop-selection-container ${className}`.trim()}
     >
       <div
-        className={`crop-selection-box ${isEditing ? 'is-editing' : ''}`}
+        className={`crop-selection-box ${isEditing ? 'is-editing' : ''} ${isDraggingBox ? 'is-dragging' : ''}`.trim()}
         role="region"
+        tabIndex={isEditing ? 0 : -1}
         aria-label={`Crop selection: ${widthPct}% × ${heightPct}%`}
+        aria-roledescription="movable crop box"
         style={{
           left,
           top,
           width,
           height,
         }}
+        onPointerDown={handleBoxPointerDown}
+        onPointerMove={handleBoxPointerMove}
+        onPointerUp={handleBoxPointerUp}
+        onPointerCancel={handleBoxPointerUp}
+        onKeyDown={handleBoxKeyDown}
       >
         {/* Corner accent resize handles */}
         <span
@@ -182,11 +314,11 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
           aria-label="Resize crop top-left handle"
           aria-roledescription="resize handle"
           className={`crop-handle crop-handle-nw ${activeHandle === 'nw' ? 'is-active' : ''}`}
-          onPointerDown={(e) => handlePointerDown(e, 'nw')}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onKeyDown={(e) => handleKeyDown(e, 'nw')}
+          onPointerDown={(e) => handleResizePointerDown(e, 'nw')}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerUp}
+          onKeyDown={(e) => handleResizeKeyDown(e, 'nw')}
         />
         <span
           role="button"
@@ -194,11 +326,11 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
           aria-label="Resize crop top-right handle"
           aria-roledescription="resize handle"
           className={`crop-handle crop-handle-ne ${activeHandle === 'ne' ? 'is-active' : ''}`}
-          onPointerDown={(e) => handlePointerDown(e, 'ne')}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onKeyDown={(e) => handleKeyDown(e, 'ne')}
+          onPointerDown={(e) => handleResizePointerDown(e, 'ne')}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerUp}
+          onKeyDown={(e) => handleResizeKeyDown(e, 'ne')}
         />
         <span
           role="button"
@@ -206,11 +338,11 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
           aria-label="Resize crop bottom-right handle"
           aria-roledescription="resize handle"
           className={`crop-handle crop-handle-se ${activeHandle === 'se' ? 'is-active' : ''}`}
-          onPointerDown={(e) => handlePointerDown(e, 'se')}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onKeyDown={(e) => handleKeyDown(e, 'se')}
+          onPointerDown={(e) => handleResizePointerDown(e, 'se')}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerUp}
+          onKeyDown={(e) => handleResizeKeyDown(e, 'se')}
         />
         <span
           role="button"
@@ -218,11 +350,11 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
           aria-label="Resize crop bottom-left handle"
           aria-roledescription="resize handle"
           className={`crop-handle crop-handle-sw ${activeHandle === 'sw' ? 'is-active' : ''}`}
-          onPointerDown={(e) => handlePointerDown(e, 'sw')}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onKeyDown={(e) => handleKeyDown(e, 'sw')}
+          onPointerDown={(e) => handleResizePointerDown(e, 'sw')}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerUp}
+          onKeyDown={(e) => handleResizeKeyDown(e, 'sw')}
         />
 
         {/* Center label badge */}

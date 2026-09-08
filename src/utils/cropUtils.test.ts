@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resizeCropRect } from './cropUtils';
+import { resizeCropRect, moveCropRect } from './cropUtils';
 import type { NormalizedRect } from '@/types';
 
 describe('cropUtils - resizeCropRect', () => {
@@ -159,6 +159,49 @@ describe('cropUtils - resizeCropRect', () => {
       expect(result.y).toBe(0.2);
       expect(result.width).toBeCloseTo(0.7); // right was 0.7
       expect(result.height).toBeCloseTo(0.8); // 1.0 - 0.2
+    });
+  });
+
+  describe('moveCropRect', () => {
+    it('translates x and y by deltas while preserving width and height', () => {
+      const result = moveCropRect({
+        initialRect,
+        deltaX: 0.1,
+        deltaY: 0.15,
+      });
+
+      expect(result.x).toBeCloseTo(0.3);
+      expect(result.y).toBeCloseTo(0.35);
+      expect(result.width).toBe(0.5);
+      expect(result.height).toBe(0.4);
+    });
+
+    it('clamps to left (0) and top (0) boundaries', () => {
+      const result = moveCropRect({
+        initialRect,
+        deltaX: -0.5,
+        deltaY: -0.5,
+      });
+
+      expect(result.x).toBe(0);
+      expect(result.y).toBe(0);
+      expect(result.width).toBe(0.5);
+      expect(result.height).toBe(0.4);
+    });
+
+    it('clamps to right (1 - width) and bottom (1 - height) boundaries', () => {
+      // width is 0.5, so max x is 0.5
+      // height is 0.4, so max y is 0.6
+      const result = moveCropRect({
+        initialRect,
+        deltaX: 0.8,
+        deltaY: 0.8,
+      });
+
+      expect(result.x).toBeCloseTo(0.5);
+      expect(result.y).toBeCloseTo(0.6);
+      expect(result.width).toBe(0.5);
+      expect(result.height).toBe(0.4);
     });
   });
 });

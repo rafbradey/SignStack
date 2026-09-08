@@ -1116,6 +1116,50 @@ describe('Workspace component', () => {
         const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
         expect(overlayRegion.style.clipPath).toBe('inset(20% 15% 15% 20%)');
       });
+
+      it('moves overlay crop rectangle across page and applies updated clip on exit', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+        });
+
+        // Click Crop overlay
+        fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', {
+              name: 'Crop selection: 60% × 60%',
+            }),
+          ).toBeDefined();
+        });
+
+        const cropBox = screen.getByRole('region', {
+          name: 'Crop selection: 60% × 60%',
+        });
+
+        // Move right (+5%) and down (+5%) via Shift+Arrow keys
+        fireEvent.keyDown(cropBox, { key: 'ArrowRight', shiftKey: true });
+        fireEvent.keyDown(cropBox, { key: 'ArrowDown', shiftKey: true });
+
+        // Exit crop mode
+        fireEvent.click(screen.getByRole('button', { name: /done cropping/i }));
+
+        // Initial rect: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 }
+        // After move: { x: 0.25, y: 0.25, width: 0.6, height: 0.6 }
+        // top: 25%, right: (1 - 0.85) = 15%, bottom: (1 - 0.85) = 15%, left: 25%
+        const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+        expect(overlayRegion.style.clipPath).toBe('inset(25% 15% 15% 25%)');
+      });
     });
   });
 });

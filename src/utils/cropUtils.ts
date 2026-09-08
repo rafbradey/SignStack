@@ -82,3 +82,39 @@ export function resizeCropRect({
     height: Math.round(height * 10000) / 10000,
   };
 }
+
+export interface MoveCropOptions {
+  /** Initial rectangle before the move began */
+  initialRect: NormalizedRect;
+  /** Normalized horizontal delta (pixel delta / rendered width) */
+  deltaX: number;
+  /** Normalized vertical delta (pixel delta / rendered height) */
+  deltaY: number;
+}
+
+/**
+ * Calculates a new NormalizedRect when moving/dragging the crop box.
+ *
+ * Ensures:
+ * - Dimensions (width and height) remain constant
+ * - Coordinates are strictly clamped so the box never leaves [0, 1] page bounds
+ */
+export function moveCropRect({
+  initialRect,
+  deltaX,
+  deltaY,
+}: MoveCropOptions): NormalizedRect {
+  const maxX = Math.max(0, 1 - initialRect.width);
+  const maxY = Math.max(0, 1 - initialRect.height);
+
+  const targetX = clamp(initialRect.x + deltaX, 0, maxX);
+  const targetY = clamp(initialRect.y + deltaY, 0, maxY);
+
+  return {
+    x: Math.round(targetX * 10000) / 10000,
+    y: Math.round(targetY * 10000) / 10000,
+    width: initialRect.width,
+    height: initialRect.height,
+  };
+}
+
