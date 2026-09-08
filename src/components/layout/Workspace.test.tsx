@@ -1050,6 +1050,72 @@ describe('Workspace component', () => {
         // Overlay on Page 1 retained its cropRect so Reset crop is available
         expect(screen.getByRole('button', { name: /reset crop/i })).toBeDefined();
       });
+
+      it('resizes overlay crop rectangle via handles and applies updated clip on exit', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /crop overlay/i })).toBeDefined();
+        });
+
+        // Click Crop overlay
+        fireEvent.click(screen.getByRole('button', { name: /crop overlay/i }));
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', {
+              name: 'Crop selection: 60% × 60%',
+            }),
+          ).toBeDefined();
+        });
+
+        // Focus on SE handle and resize width via Shift+ArrowRight (+5%)
+        const seHandle = screen.getByRole('button', {
+          name: 'Resize crop bottom-right handle',
+        });
+        fireEvent.keyDown(seHandle, { key: 'ArrowRight', shiftKey: true });
+
+        // Badge should update to 65% x 60%
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', {
+              name: 'Crop selection: 65% × 60%',
+            }),
+          ).toBeDefined();
+        });
+
+        // Resize height via Shift+ArrowDown (+5%)
+        const updatedSeHandle = screen.getByRole('button', {
+          name: 'Resize crop bottom-right handle',
+        });
+        fireEvent.keyDown(updatedSeHandle, { key: 'ArrowDown', shiftKey: true });
+
+        // Badge should update to 65% x 65%
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', {
+              name: 'Crop selection: 65% × 65%',
+            }),
+          ).toBeDefined();
+        });
+
+        // Exit crop mode
+        fireEvent.click(screen.getByRole('button', { name: /done cropping/i }));
+
+        // Overlay region should now have updated clip-path:
+        // x: 0.2, y: 0.2, width: 0.65, height: 0.65
+        // top: 20%, right: 15%, bottom: 15%, left: 20%
+        const overlayRegion = screen.getByRole('region', { name: 'Overlay page 1' });
+        expect(overlayRegion.style.clipPath).toBe('inset(20% 15% 15% 20%)');
+      });
     });
   });
 });

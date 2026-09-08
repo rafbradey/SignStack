@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { CropSelectionBox } from './CropSelectionBox';
 import type { NormalizedRect } from '@/types/coordinates';
 
@@ -33,20 +33,24 @@ describe('CropSelectionBox component', () => {
     expect(region.style.height).toBe('40%');
   });
 
-  it('renders four corner accent handles with aria-hidden', () => {
+  it('renders four interactive corner resize handles with accessible labels', () => {
     const { container } = render(<CropSelectionBox cropRect={defaultCropRect} />);
 
     const handles = container.querySelectorAll('.crop-handle');
     expect(handles.length).toBe(4);
 
-    expect(container.querySelector('.crop-handle-nw')).not.toBeNull();
-    expect(container.querySelector('.crop-handle-ne')).not.toBeNull();
-    expect(container.querySelector('.crop-handle-se')).not.toBeNull();
-    expect(container.querySelector('.crop-handle-sw')).not.toBeNull();
-
-    handles.forEach((handle) => {
-      expect(handle.getAttribute('aria-hidden')).toBe('true');
-    });
+    expect(
+      screen.getByRole('button', { name: 'Resize crop top-left handle' }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: 'Resize crop top-right handle' }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: 'Resize crop bottom-right handle' }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: 'Resize crop bottom-left handle' }),
+    ).toBeDefined();
   });
 
   it('renders size badge with percentage label', () => {
@@ -55,13 +59,113 @@ describe('CropSelectionBox component', () => {
     expect(screen.getByText('50% × 40%')).toBeDefined();
   });
 
-  it('renders container and selection box elements', () => {
-    const { container } = render(<CropSelectionBox cropRect={defaultCropRect} />);
+  it('resizes crop rectangle using keyboard arrow keys on focused handle', () => {
+    const handleChange = vi.fn();
+    render(
+      <CropSelectionBox
+        cropRect={defaultCropRect}
+        onChange={handleChange}
+        isEditing={true}
+      />,
+    );
 
-    const selectionContainer = container.querySelector('.crop-selection-container');
-    expect(selectionContainer).not.toBeNull();
+    const seHandle = screen.getByRole('button', {
+      name: 'Resize crop bottom-right handle',
+    });
 
-    const selectionBox = container.querySelector('.crop-selection-box');
-    expect(selectionBox).not.toBeNull();
+    // Press ArrowRight to expand width by 0.01 (1%)
+    fireEvent.keyDown(seHandle, { key: 'ArrowRight' });
+    expect(handleChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.25,
+        width: 0.51,
+        height: 0.4,
+      }),
+    );
+
+    // Press ArrowDown to expand height by 0.01 (1%)
+    fireEvent.keyDown(seHandle, { key: 'ArrowDown' });
+    expect(handleChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.25,
+        width: 0.5,
+        height: 0.41,
+      }),
+    );
+
+    // Press ArrowRight with Shift to expand width by 0.05 (5%)
+    fireEvent.keyDown(seHandle, { key: 'ArrowRight', shiftKey: true });
+    expect(handleChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.25,
+        width: 0.55,
+        height: 0.4,
+      }),
+    );
+  });
+
+  it('handles pointer drag resizing on SE handle', () => {
+    const handleChange = vi.fn();
+    const { container } = render(
+      <CropSelectionBox
+        cropRect={defaultCropRect}
+        onChange={handleChange}
+        isEditing={true}
+      />,
+    );
+
+    const selectionContainer = container.querySelector(
+      '.crop-selection-container',
+    ) as HTMLElement;
+
+    // Mock getBoundingClientRect on container to 500px x 400px
+    vi.spyOn(selectionContainer, 'getBoundingClientRect').mockReturnValue({
+      width: 500,
+      height: 400,
+      top: 0,
+      left: 0,
+      bottom: 400,
+      right: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const seHandle = screen.getByRole('button', {
+      name: 'Resize crop bottom-right handle',
+    });
+
+    // Mock setPointerCapture and releasePointerCapture
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.releasePointerCapture = vi.fn();
+
+    // Pointer down at (350, 260)
+    fireEvent.pointerDown(seHandle, {
+      clientX: 350,
+      clientY: 260,
+      pointerId: 1,
+    });
+
+    // Move pointer by +50px X (50/500 = +0.10) and +40px Y (40/400 = +0.10)
+    fireEvent.pointerMove(seHandle, {
+      clientX: 400,
+      clientY: 300,
+      pointerId: 1,
+    });
+
+    expect(handleChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.25,
+        width: 0.6,
+        height: 0.5,
+      }),
+    );
+
+    // Pointer up releases drag
+    fireEvent.pointerUp(seHandle, { pointerId: 1 });
   });
 });

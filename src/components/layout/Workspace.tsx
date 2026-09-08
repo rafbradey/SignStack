@@ -19,7 +19,12 @@ import {
   Crop,
   RotateCcw,
 } from 'lucide-react';
-import { UploadedDocument, PageDimensions, PageOverlay } from '@/types';
+import {
+  UploadedDocument,
+  PageDimensions,
+  PageOverlay,
+  NormalizedRect,
+} from '@/types';
 import { clamp, calculateOverlayViewportPosition } from '@/utils';
 import { DocumentCard } from './DocumentCard';
 import { PdfPageCanvas, PdfOverlayLayer } from '@/components/pdf';
@@ -344,6 +349,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     );
     setIsCropping(false);
   };
+
+  const handleCropChange = useCallback(
+    (newCropRect: NormalizedRect) => {
+      if (!activeOverlay) return;
+      setOverlays((prev) =>
+        prev.map((o) =>
+          o.id === activeOverlay.id ? { ...o, cropRect: newCropRect } : o,
+        ),
+      );
+    },
+    [activeOverlay],
+  );
 
   const handleDimensionsChange = useCallback(
     (dims: PageDimensions) => {
@@ -701,6 +718,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       rotation={overlay.rotation}
                       cropRect={overlay.cropRect}
                       isCropping={isCropping && overlay.id === activeOverlay?.id}
+                      onCropChange={handleCropChange}
                     />
                   );
                 })}

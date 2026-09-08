@@ -22,6 +22,8 @@ export interface PdfOverlayLayerProps {
   cropRect?: NormalizedRect;
   /** Whether the user is actively adjusting/viewing crop mode */
   isCropping?: boolean;
+  /** Callback invoked when crop rectangle is resized */
+  onCropChange?: (cropRect: NormalizedRect) => void;
   /** Additional CSS class names */
   className?: string;
 }
@@ -42,6 +44,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
   position = { x: 0, y: 0 },
   cropRect,
   isCropping = false,
+  onCropChange,
   className = '',
 }) => {
   const { canvasRef, dimensions } = usePdfPage({
@@ -86,7 +89,11 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
 
       {/* Render visual crop frame during active crop mode */}
       {cropRect && isCropping && (
-        <CropSelectionBox cropRect={cropRect} isEditing={true} />
+        <CropSelectionBox
+          cropRect={cropRect}
+          isEditing={true}
+          onChange={onCropChange}
+        />
       )}
     </div>
   );
