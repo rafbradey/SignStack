@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DocumentCard — single uploaded PDF row
+   DocumentCard — single uploaded PDF item in horizontal tray
    ========================================================================== */
 
 .doc-card {
@@ -12,15 +12,96 @@
   border-radius: var(--radius-md);
   transition:
     border-color var(--transition-fast),
-    background-color var(--transition-fast);
-  flex-shrink: 0; /* prevent cards from being squished */
-  width: 180px; /* fixed compact width */
-  min-width: 180px;
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+  flex-shrink: 0;
+  width: 280px;
+  min-width: 280px;
+  height: 48px;
+  box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
 }
 
 .doc-card:hover {
   border-color: var(--border-hover);
   background-color: var(--bg-card-hover);
+}
+
+.doc-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* Highlight for current Main Document */
+.doc-card.is-main {
+  border-color: var(--primary);
+  background-color: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 1px var(--primary-subtle);
+}
+
+.doc-card.is-main:hover {
+  border-color: var(--primary-hover, var(--primary));
+  background-color: rgba(99, 102, 241, 0.12);
+}
+
+/* Dragging state */
+.doc-card.is-dragging {
+  opacity: 0.4;
+  border-style: dashed;
+  border-color: var(--primary);
+  transform: scale(0.98);
+}
+
+/* Drag-over indicator */
+.doc-card.is-drag-over {
+  border-color: var(--primary);
+  box-shadow: -3px 0 0 var(--primary);
+  background-color: var(--bg-card-hover);
+}
+
+/* Queue position number */
+.doc-card-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.doc-card.is-main .doc-card-num {
+  color: var(--primary-text);
+  background-color: var(--primary-subtle);
+}
+
+/* Drag handle */
+.doc-card-drag-handle {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-fast);
+}
+
+.doc-card:hover .doc-card-drag-handle,
+.doc-card:focus-within .doc-card-drag-handle {
+  opacity: 0.9;
+}
+
+.doc-card.is-dragging .doc-card-drag-handle {
+  cursor: grabbing;
 }
 
 /* PDF file icon */
@@ -36,13 +117,20 @@
   justify-content: center;
 }
 
-/* Metadata: name + details row */
+/* Metadata: name + subline */
 .doc-card-meta {
   flex: 1;
-  min-width: 0; /* allow text-overflow: ellipsis to work */
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  justify-content: center;
+  gap: 2px;
+}
+
+.doc-card-name-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .doc-card-name {
@@ -52,32 +140,75 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  outline: none;
 }
 
-.doc-card-details {
-  display: none; /* hidden in compact horizontal tray mode */
+.doc-card-name:focus-visible {
+  text-decoration: underline;
+}
+
+.doc-card-subline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1;
 }
 
 .doc-card-size {
-  font-size: var(--text-xs);
+  font-size: 11px;
   color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* "Set as Main" interactive button */
+.doc-card-set-main-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  transition: color var(--transition-fast);
+  line-height: 1;
+}
+
+.doc-card-set-main-btn:hover {
+  color: var(--primary-text);
+  text-decoration-style: solid;
 }
 
 /* Actions: move + remove buttons */
-/* Reorder buttons hidden in compact tray — only show remove */
-.doc-card-reorder {
-  display: none;
-}
-
 .doc-card-actions {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 1px;
   margin-left: auto;
 }
 
-/* Tint the remove button danger-red on hover */
+.doc-card-reorder {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.doc-card:hover .doc-card-reorder,
+.doc-card:focus-within .doc-card-reorder {
+  opacity: 1;
+}
+
+.doc-card-btn-icon {
+  padding: 3px !important;
+  min-width: 22px !important;
+  height: 22px !important;
+}
+
+/* Danger-red on hover for remove button */
 .doc-card-remove:hover:not(:disabled) {
   color: var(--danger-text) !important;
   background-color: var(--danger-subtle) !important;

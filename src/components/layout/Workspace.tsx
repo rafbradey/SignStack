@@ -32,6 +32,10 @@ export interface WorkspaceProps {
   onMoveDocument?: (id: string, direction: 'up' | 'down') => void;
   /** Function to add files to document state */
   addFiles?: (files: File[] | FileList) => Promise<AddFilesResult>;
+  /** Optional controlled ID for the main document */
+  mainDocumentId?: string;
+  /** Optional callback when the main document selection changes */
+  onSelectMainDocument?: (id: string) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -39,13 +43,56 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   documents = [],
   onRemoveDocument,
   onMoveDocument,
+  onReorderDocuments,
   addFiles,
+  mainDocumentId,
+  onSelectMainDocument,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active base document is the first document in the tray
-  const baseDoc = documents.length > 0 ? documents[0] : null;
+  // Main Document: controlled if mainDocumentId is passed, otherwise local state defaulting to first document
+  const [internalMainDocId, setInternalMainDocId] = useState<string | null>(null);
+  const activeMainDocId = mainDocumentId ?? internalMainDocId;
+
+  const mainDoc =
+    documents.find((doc) => doc.id === activeMainDocId) ??
+    (documents.length > 0 ? documents[0] : null);
+
+  const handleSelectMainDoc = (id: string) => {
+    setInternalMainDocId(id);
+    onSelectMainDocument?.(id);
+  };
+
+  // Drag-and-drop state for queue reordering
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleCardDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleCardDragOver = (e: React.DragEvent<HTMLElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleCardDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleCardDrop = (e: React.DragEvent<HTMLElement>, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== targetIndex) {
+      onReorderDocuments?.(draggedIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   const [docState, setDocState] = useState<{
     docId: string | null;
@@ -60,15 +107,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   useEffect(() => {
     let isCancelled = false;
 
-    if (!baseDoc) {
+    if (!mainDoc) {
       return;
     }
 
-    loadPdfDocument(baseDoc.file, baseDoc.id)
+    loadPdfDocument(mainDoc.file, mainDoc.id)
       .then((doc) => {
         if (!isCancelled) {
           setDocState({
-            docId: baseDoc.id,
+            docId: mainDoc.id,
             pdfDoc: doc,
             error: null,
           });
@@ -77,7 +124,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       .catch((err) => {
         if (!isCancelled) {
           setDocState({
-            docId: baseDoc.id,
+            docId: mainDoc.id,
             pdfDoc: null,
             error:
               err instanceof Error
@@ -90,15 +137,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [baseDoc]);
+  }, [mainDoc]);
 
   const isDocLoading = Boolean(
-    baseDoc && docState.docId !== baseDoc.id && !docState.error,
+    mainDoc && docState.docId !== mainDoc.id && !docState.error,
   );
   const pdfDoc =
-    baseDoc && docState.docId === baseDoc.id ? docState.pdfDoc : null;
+    mainDoc && docState.docId === mainDoc.id ? docState.pdfDoc : null;
   const docError =
-    baseDoc && docState.docId === baseDoc.id ? docState.error : null;
+    mainDoc && docState.docId === mainDoc.id ? docState.error : null;
 
   return (
     <div className="workspace-container">
@@ -123,6 +170,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             Queue
           </Badge>
           <span className="document-tray-title">Uploaded Documents</span>
+          {documents.length > 0 && (
+            <span className="document-tray-count">
+              Documents · {documents.length}
+            </span>
+          )}
         </div>
 
         <div className="document-tray-cards">
@@ -133,9 +185,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 document={doc}
                 position={index + 1}
                 totalDocuments={documents.length}
+                isMain={doc.id === mainDoc?.id}
+                onSetMain={handleSelectMainDoc}
                 onRemove={onRemoveDocument ?? (() => {})}
                 onMoveUp={(id) => onMoveDocument?.(id, 'up')}
                 onMoveDown={(id) => onMoveDocument?.(id, 'down')}
+                isDragging={draggedIndex === index}
+                isDragOver={dragOverIndex === index && draggedIndex !== index}
+                onDragStart={() => handleCardDragStart(index)}
+                onDragOver={(e) => handleCardDragOver(e, index)}
+                onDragEnd={handleCardDragEnd}
+                onDrop={(e) => handleCardDrop(e, index)}
               />
             ))
           ) : (
@@ -163,6 +223,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           variant="primary"
           size="sm"
           leftIcon={<Upload size={14} />}
+          style={{ flexShrink: 0 }}
           onClick={() => {
             fileInputRef.current?.click();
             if (onUploadClick) onUploadClick();
@@ -210,12 +271,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           <div className="pane-header">
             <div className="pane-title-group">
               <span className="pane-title">Editor Workspace</span>
-              <Badge variant="neutral" size="sm">
-                Base
+              <Badge variant="primary" size="sm">
+                Main Document
               </Badge>
-              {baseDoc && (
-                <span className="pane-document-name" title={baseDoc.name}>
-                  {baseDoc.name}
+              {mainDoc && (
+                <span className="pane-document-name" title={mainDoc.name}>
+                  {mainDoc.name}
                 </span>
               )}
             </div>
@@ -247,7 +308,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           </div>
 
           <div className="pane-viewport">
-            {!baseDoc ? (
+            {!mainDoc ? (
               <div className="viewport-empty-card">
                 <div className="viewport-empty-icon" aria-hidden="true">
                   <FileText size={26} />
@@ -266,9 +327,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               </div>
             ) : isDocLoading ? (
               <div className="viewport-loading-state">
-                <Spinner size="lg" label={`Loading ${baseDoc.name}...`} />
+                <Spinner size="lg" label={`Loading ${mainDoc.name}...`} />
                 <span className="viewport-loading-text">
-                  Loading {baseDoc.name}...
+                  Loading {mainDoc.name}...
                 </span>
               </div>
             ) : docError ? (

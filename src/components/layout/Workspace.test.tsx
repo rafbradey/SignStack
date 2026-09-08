@@ -181,4 +181,85 @@ describe('Workspace component', () => {
       ).toBeDefined();
     });
   });
+
+  it('renders queue numbers and document count indicator', async () => {
+    const docs = [
+      makeDoc({ id: 'a', name: 'first.pdf' }),
+      makeDoc({ id: 'b', name: 'second.pdf' }),
+    ];
+    render(<Workspace documents={docs} />);
+
+    expect(screen.getByText('Documents · 2')).toBeDefined();
+    expect(screen.getByText('1')).toBeDefined();
+    expect(screen.getByText('2')).toBeDefined();
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('region', { name: /pdf page 1/i }),
+      ).toBeDefined();
+    });
+  });
+
+  it('allows user to change the Main Document', async () => {
+    const docs = [
+      makeDoc({ id: 'a', name: 'first.pdf' }),
+      makeDoc({ id: 'b', name: 'second.pdf' }),
+    ];
+    const handleSelectMain = vi.fn();
+    render(
+      <Workspace
+        documents={docs}
+        onSelectMainDocument={handleSelectMain}
+      />,
+    );
+
+    // Initial main document is "first.pdf"
+    expect(screen.getAllByText('first.pdf').length).toBeGreaterThanOrEqual(1);
+
+    // Click "Set Main" on second.pdf
+    const setMainBtn = screen.getByRole('button', {
+      name: /set "second\.pdf" as main document/i,
+    });
+    fireEvent.click(setMainBtn);
+    expect(handleSelectMain).toHaveBeenCalledWith('b');
+
+    // second.pdf is now designated as Main
+    await waitFor(() => {
+      const secondCard = screen.getByLabelText(
+        /document 2: second\.pdf \(main document\)/i,
+      );
+      expect(secondCard).toBeDefined();
+    });
+  });
+
+  it('triggers onReorderDocuments when card drag and drop occurs', async () => {
+    const docs = [
+      makeDoc({ id: 'a', name: 'first.pdf' }),
+      makeDoc({ id: 'b', name: 'second.pdf' }),
+    ];
+    const handleReorder = vi.fn();
+    render(<Workspace documents={docs} onReorderDocuments={handleReorder} />);
+
+    const firstCard = screen.getByLabelText(/document 1: first\.pdf/i);
+    const secondCard = screen.getByLabelText(/document 2: second\.pdf/i);
+
+    // Simulate drag start on first card
+    fireEvent.dragStart(firstCard, {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
+    });
+
+    // Simulate drop onto second card
+    fireEvent.drop(secondCard, {
+      dataTransfer: { getData: vi.fn() },
+    });
+
+    expect(handleReorder).toHaveBeenCalledWith(0, 1);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('region', { name: /pdf page 1/i }),
+      ).toBeDefined();
+    });
+  });
 });
+
