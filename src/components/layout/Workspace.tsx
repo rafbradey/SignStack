@@ -13,15 +13,22 @@ import {
   Sliders,
   FileSpreadsheet,
 } from 'lucide-react';
+import { UploadedDocument } from '@/types';
 import './Workspace.css';
 
 export type WorkspaceTab = 'editor' | 'result';
 
 export interface WorkspaceProps {
   onUploadClick?: () => void;
+  documents?: UploadedDocument[];
+  onRemoveDocument?: (id: string) => void;
+  onReorderDocuments?: (startIndex: number, endIndex: number) => void;
 }
 
-export const Workspace: React.FC<WorkspaceProps> = ({ onUploadClick }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({
+  onUploadClick,
+  documents = [],
+}) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
 
   return (
@@ -37,9 +44,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onUploadClick }) => {
         </div>
 
         <div className="document-tray-chips">
-          <span className="document-tray-empty-hint">
-            No PDFs loaded. Document cards will appear here in Phase 3.
-          </span>
+          {documents.length > 0 ? (
+            documents.map((doc, index) => (
+              <Badge key={doc.id} variant="neutral" size="md">
+                {index + 1}. {doc.name} ({doc.formattedSize})
+              </Badge>
+            ))
+          ) : (
+            <span className="document-tray-empty-hint">
+              No PDFs loaded. Document cards will appear here in Phase 3.
+            </span>
+          )}
         </div>
 
         <Button

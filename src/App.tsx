@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { Header, Workspace } from '@/components/layout';
 import { Alert } from '@/components/ui';
+import { useDocuments } from '@/hooks';
 
 export default function App() {
   const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
+  const {
+    documents,
+    validationErrors,
+    removeDocument,
+    reorderDocuments,
+    clearErrors,
+  } = useDocuments();
 
   const handleUploadClick = () => {
     setPhaseNotice(
-      'PDF uploading, validation, and document cards will be activated in Phase 3.',
+      'Document state management (Task 3.2) is active. The upload dropzone and file picker will be connected in Task 3.3.',
     );
   };
 
@@ -23,7 +31,31 @@ export default function App() {
       {/* Top Application Header */}
       <Header />
 
-      {/* Transient Notification Banner (e.g. Phase 3 prompt) */}
+      {/* Validation Error Alerts */}
+      {validationErrors.length > 0 && (
+        <div
+          style={{
+            padding: 'var(--space-2) var(--space-6)',
+            backgroundColor: 'var(--bg-canvas)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-2)',
+          }}
+        >
+          {validationErrors.map((err, idx) => (
+            <Alert
+              key={`${err.fileName}-${idx}`}
+              variant="danger"
+              title={`Validation Error: ${err.fileName}`}
+              onDismiss={clearErrors}
+            >
+              {err.message}
+            </Alert>
+          ))}
+        </div>
+      )}
+
+      {/* Transient Notification Banner */}
       {phaseNotice && (
         <div
           style={{
@@ -33,7 +65,7 @@ export default function App() {
         >
           <Alert
             variant="info"
-            title="Phase 3 Ready"
+            title="Upload Pipeline Status"
             onDismiss={() => setPhaseNotice(null)}
           >
             {phaseNotice}
@@ -42,7 +74,12 @@ export default function App() {
       )}
 
       {/* Dual-Pane Workspace (EDITOR | RESULT) */}
-      <Workspace onUploadClick={handleUploadClick} />
+      <Workspace
+        documents={documents}
+        onUploadClick={handleUploadClick}
+        onRemoveDocument={removeDocument}
+        onReorderDocuments={reorderDocuments}
+      />
     </div>
   );
 }

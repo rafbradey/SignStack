@@ -39,4 +39,23 @@ describe('Workspace component', () => {
     fireEvent.click(editorTab);
     expect(editorTab.classList.contains('active')).toBe(true);
   });
+
+  it('renders document badges when documents are provided', () => {
+    const mockFile = new File(['%PDF-1.4 sample'], 'invoice.pdf', {
+      type: 'application/pdf',
+    });
+    const mockDoc = {
+      id: 'doc-1',
+      file: mockFile,
+      name: 'invoice.pdf',
+      size: 1500,
+      formattedSize: '1.5 KB',
+      type: 'application/pdf',
+      uploadedAt: Date.now(),
+    };
+
+    render(<Workspace documents={[mockDoc]} />);
+    expect(screen.getByText(/1\. invoice\.pdf \(1\.5 KB\)/i)).toBeDefined();
+    expect(screen.queryByText(/no pdfs loaded/i)).toBeNull();
+  });
 });
