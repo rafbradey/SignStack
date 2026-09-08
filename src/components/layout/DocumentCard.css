@@ -1,0 +1,78 @@
+/* ==========================================================================
+   DocumentCard — single uploaded PDF row
+   ========================================================================== */
+
+.doc-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  min-width: 0; /* allow text truncation inside flex children */
+}
+
+.doc-card:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-card-hover);
+}
+
+/* PDF file icon */
+.doc-card-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background-color: var(--primary-subtle);
+  color: var(--primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Metadata: name + details row */
+.doc-card-meta {
+  flex: 1;
+  min-width: 0; /* allow text-overflow: ellipsis to work */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.doc-card-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-card-details {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doc-card-size {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Actions: move + remove buttons */
+.doc-card-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Tint the remove button danger-red on hover */
+.doc-card-remove:hover:not(:disabled) {
+  color: var(--danger-text) !important;
+  background-color: var(--danger-subtle) !important;
+}

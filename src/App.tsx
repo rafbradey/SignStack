@@ -8,6 +8,7 @@ export default function App() {
     validationErrors,
     addFiles,
     removeDocument,
+    moveDocument,
     reorderDocuments,
     clearErrors,
   } = useDocuments();
@@ -48,12 +49,12 @@ export default function App() {
         </div>
       )}
 
-
       {/* Dual-Pane Workspace (EDITOR | RESULT) */}
       <Workspace
         documents={documents}
         addFiles={addFiles}
         onRemoveDocument={removeDocument}
+        onMoveDocument={moveDocument}
         onReorderDocuments={reorderDocuments}
       />
     </div>

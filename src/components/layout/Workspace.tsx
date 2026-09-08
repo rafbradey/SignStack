@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { UploadedDocument } from '@/types';
+import { DocumentCard } from './DocumentCard';
 import './Workspace.css';
 
 export type WorkspaceTab = 'editor' | 'result';
@@ -24,6 +25,8 @@ export interface WorkspaceProps {
   documents?: UploadedDocument[];
   onRemoveDocument?: (id: string) => void;
   onReorderDocuments?: (startIndex: number, endIndex: number) => void;
+  /** Called when the user moves a document up or down one position */
+  onMoveDocument?: (id: string, direction: 'up' | 'down') => void;
   /** Function to add files to document state */
   addFiles?: (files: File[] | FileList) => Promise<AddFilesResult>;
 }
@@ -31,6 +34,8 @@ export interface WorkspaceProps {
 export const Workspace: React.FC<WorkspaceProps> = ({
   onUploadClick,
   documents = [],
+  onRemoveDocument,
+  onMoveDocument,
   addFiles,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
@@ -61,16 +66,22 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           <span className="document-tray-title">Uploaded Documents</span>
         </div>
 
-        <div className="document-tray-chips">
+        <div className="document-tray-cards">
           {documents.length > 0 ? (
             documents.map((doc, index) => (
-              <Badge key={doc.id} variant="neutral" size="md">
-                {index + 1}. {doc.name} ({doc.formattedSize})
-              </Badge>
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                position={index + 1}
+                totalDocuments={documents.length}
+                onRemove={onRemoveDocument ?? (() => {})}
+                onMoveUp={(id) => onMoveDocument?.(id, 'up')}
+                onMoveDown={(id) => onMoveDocument?.(id, 'down')}
+              />
             ))
           ) : (
             <span className="document-tray-empty-hint">
-              No PDFs loaded. Document cards will appear here in Phase 3.
+              Upload a PDF to get started. Your documents will appear here.
             </span>
           )}
         </div>
