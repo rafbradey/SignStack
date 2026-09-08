@@ -41,11 +41,11 @@ I want to learn while building SignStack.
 
 When introducing something important:
 
-* Explain what it is.
-* Explain why we need it.
-* Explain why we are using the chosen approach.
-* Show where it belongs in the project.
-* Explain important parts of the implementation.
+- Explain what it is.
+- Explain why we need it.
+- Explain why we are using the chosen approach.
+- Show where it belongs in the project.
+- Explain important parts of the implementation.
 
 Do not overwhelm me with explanations of every trivial line.
 
@@ -59,14 +59,14 @@ Prefer the simplest architecture that correctly solves the current problem.
 
 Avoid:
 
-* unnecessary abstractions
-* unnecessary dependencies
-* premature optimization
-* excessive design patterns
-* unnecessary state management
-* unnecessary backend infrastructure
-* unnecessary configuration
-* building future features before they are needed
+- unnecessary abstractions
+- unnecessary dependencies
+- premature optimization
+- excessive design patterns
+- unnecessary state management
+- unnecessary backend infrastructure
+- unnecessary configuration
+- building future features before they are needed
 
 A simple solution is preferred over a complex solution when both are appropriate.
 
@@ -80,18 +80,18 @@ Do not implement future roadmap features unless I explicitly ask for them.
 
 Do not automatically add:
 
-* authentication
-* user accounts
-* subscriptions
-* payments
-* analytics
-* cloud storage
-* collaboration
-* AI/OCR
-* e-signatures
-* full PDF editing
-* mobile applications
-* admin dashboards
+- authentication
+- user accounts
+- subscriptions
+- payments
+- analytics
+- cloud storage
+- collaboration
+- AI/OCR
+- e-signatures
+- full PDF editing
+- mobile applications
+- admin dashboards
 
 These may exist in the long-term roadmap but are not part of the MVP.
 
@@ -103,24 +103,24 @@ Write maintainable, readable, production-quality code.
 
 Prefer:
 
-* clear naming
-* small focused components
-* predictable state ownership
-* reusable utilities where appropriate
-* strong TypeScript types
-* clear separation between UI and business logic
-* accessible UI
-* consistent formatting
-* meaningful error handling
+- clear naming
+- small focused components
+- predictable state ownership
+- reusable utilities where appropriate
+- strong TypeScript types
+- clear separation between UI and business logic
+- accessible UI
+- consistent formatting
+- meaningful error handling
 
 Avoid:
 
-* giant components
-* duplicated logic
-* deeply nested conditional logic
-* magic numbers when avoidable
-* unexplained hacks
-* unnecessary comments
+- giant components
+- duplicated logic
+- deeply nested conditional logic
+- magic numbers when avoidable
+- unexplained hacks
+- unnecessary comments
 
 Comments should explain "why" when the reasoning is not obvious.
 
@@ -136,10 +136,11 @@ After completing each approved development task:
 
 1. Run the appropriate validation checks:
 
-   * lint
-   * TypeScript/type-checking
-   * build
-   * relevant tests, if available
+   - lint
+   - TypeScript/type-checking
+   - build
+   - relevant tests, if available
+
 2. Inspect the Git diff and confirm that only changes related to the current task are included.
 3. Report the files changed and validation results.
 4. Create a logical commit for the completed task.
@@ -149,10 +150,10 @@ After completing each approved development task:
 
 Commit messages should be clear and follow a consistent conventional-commit style where appropriate, for example:
 
-* `feat: add PDF upload input`
-* `fix: align workspace pane footers`
-* `refactor: extract document validation`
-* `test: add PDF validation tests`
+- `feat: add PDF upload input`
+- `fix: align workspace pane footers`
+- `refactor: extract document validation`
+- `test: add PDF validation tests`
 
 Do not commit unrelated changes.
 
@@ -162,7 +163,7 @@ Do not commit secrets, credentials, `.env` files containing secrets, API keys, o
 
 If validation fails, do not automatically commit the failed implementation. Report the failure and wait for instructions unless the failure is clearly caused by the current task and can be safely fixed within that task.
 
-----
+---
 
 ## React Guidelines
 
@@ -170,14 +171,14 @@ Use React idiomatically.
 
 Consider carefully:
 
-* component responsibilities
-* state ownership
-* derived state
-* props
-* custom hooks
-* context
-* effects
-* memoization
+- component responsibilities
+- state ownership
+- derived state
+- props
+- custom hooks
+- context
+- effects
+- memoization
 
 Do not introduce Context, Zustand, Redux, or another state-management library unless there is a clear reason.
 
@@ -191,15 +192,15 @@ Prefer TypeScript for SignStack unless there is a strong reason not to.
 
 Use meaningful types for:
 
-* documents
-* PDF pages
-* crop regions
-* overlay configuration
-* coordinates
-* editor state
-* processing state
-* errors
-* generated results
+- documents
+- PDF pages
+- crop regions
+- overlay configuration
+- coordinates
+- editor state
+- processing state
+- errors
+- generated results
 
 Avoid using `any` unless absolutely necessary.
 
@@ -213,21 +214,21 @@ PDF processing is one of the most technically important parts of SignStack.
 
 Before implementing significant PDF functionality, think about:
 
-* PDF coordinate systems
-* browser coordinate systems
-* rendered page dimensions
-* PDF page dimensions
-* scaling
-* zoom
-* crop coordinates
-* rotation
-* page orientation
-* page size differences
-* overlay positioning
-* opacity
-* PDF generation
-* browser memory
-* large files
+- PDF coordinate systems
+- browser coordinate systems
+- rendered page dimensions
+- PDF page dimensions
+- scaling
+- zoom
+- crop coordinates
+- rotation
+- page orientation
+- page size differences
+- overlay positioning
+- opacity
+- PDF generation
+- browser memory
+- large files
 
 Do not assume browser coordinates and PDF coordinates are interchangeable.
 
@@ -243,13 +244,13 @@ Prefer client-side processing when practical.
 
 When choosing a PDF architecture, consider:
 
-* whether files leave the user's browser
-* browser memory usage
-* processing performance
-* security
-* file size limitations
-* scalability
-* hosting cost
+- whether files leave the user's browser
+- browser memory usage
+- processing performance
+- security
+- file size limitations
+- scalability
+- hosting cost
 
 Do not introduce a backend file-upload system unless there is a clear requirement for it.
 
@@ -272,22 +273,22 @@ Do not add libraries simply because they are popular.
 
 SignStack should feel:
 
-* modern
-* minimal
-* professional
-* intuitive
-* fast
-* accessible
-* responsive
+- modern
+- minimal
+- professional
+- intuitive
+- fast
+- accessible
+- responsive
 
 Avoid:
 
-* excessive gradients
-* unnecessary animations
-* excessive colors
-* clutter
-* complicated navigation
-* unnecessary UI elements
+- excessive gradients
+- unnecessary animations
+- excessive colors
+- clutter
+- complicated navigation
+- unnecessary UI elements
 
 The interface should prioritize the PDF workflow.
 
@@ -307,17 +308,17 @@ Handle expected failures gracefully.
 
 Examples include:
 
-* invalid PDF
-* corrupted PDF
-* unsupported PDF
-* empty upload
-* only one uploaded document
-* very large PDF
-* different page sizes
-* different orientations
-* rendering failure
-* PDF generation failure
-* browser memory limitations
+- invalid PDF
+- corrupted PDF
+- unsupported PDF
+- empty upload
+- only one uploaded document
+- very large PDF
+- different page sizes
+- different orientations
+- rendering failure
+- PDF generation failure
+- browser memory limitations
 
 Errors should be understandable to normal users.
 
@@ -351,11 +352,11 @@ Commit messages should describe the change clearly.
 
 Examples:
 
-* `feat: add PDF upload component`
-* `feat: render PDF pages`
-* `feat: add document reordering`
-* `fix: correct overlay coordinate conversion`
-* `refactor: extract PDF utilities`
+- `feat: add PDF upload component`
+- `feat: render PDF pages`
+- `feat: add document reordering`
+- `fix: correct overlay coordinate conversion`
+- `refactor: extract PDF utilities`
 
 Do not create one giant commit containing an entire phase.
 
@@ -385,14 +386,14 @@ For significant architectural decisions, stop and discuss the approach before im
 
 Examples:
 
-* choosing a PDF library
-* changing the application architecture
-* introducing global state
-* adding a backend
-* changing the editor architecture
-* changing the coordinate system
-* introducing Supabase
-* adding complex performance optimizations
+- choosing a PDF library
+- changing the application architecture
+- introducing global state
+- adding a backend
+- changing the editor architecture
+- changing the coordinate system
+- introducing Supabase
+- adding complex performance optimizations
 
 Explain the tradeoffs.
 
@@ -402,10 +403,10 @@ Explain the tradeoffs.
 
 Before making a significant change, identify:
 
-* files that will be created
-* files that will be modified
-* files that will be removed, if any
-* why each file is involved
+- files that will be created
+- files that will be modified
+- files that will be removed, if any
+- why each file is involved
 
 Do not modify unrelated files.
 
@@ -417,8 +418,8 @@ Always prioritize the current task over future improvements.
 
 If you notice unrelated improvements:
 
-* mention them briefly
-* do not implement them unless they are necessary for the current task
+- mention them briefly
+- do not implement them unless they are necessary for the current task
 
 Avoid scope creep.
 
@@ -430,11 +431,11 @@ A task is not considered complete merely because the code was written.
 
 A task is complete when:
 
-* the implementation works
-* important errors are handled
-* relevant tests/checks pass
-* the code is understandable
-* the current feature can be manually tested
+- the implementation works
+- important errors are handled
+- relevant tests/checks pass
+- the code is understandable
+- the current feature can be manually tested
 
 ---
 
@@ -450,9 +451,9 @@ Deployment belongs to the production preparation/deployment phase.
 
 Use these project documents for additional context:
 
-* `docs/PROJECT_CONTEXT.md` — product and project context
-* `docs/MVP.md` — current MVP scope
-* `docs/ROADMAP.md` — development roadmap
-* `docs/ARCHITECTURE.md` — technical architecture and decisions
+- `docs/PROJECT_CONTEXT.md` — product and project context
+- `docs/MVP.md` — current MVP scope
+- `docs/ROADMAP.md` — development roadmap
+- `docs/ARCHITECTURE.md` — technical architecture and decisions
 
 These documents should be treated as project context, not as instructions to implement everything immediately.
