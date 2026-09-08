@@ -261,5 +261,165 @@ describe('Workspace component', () => {
       ).toBeDefined();
     });
   });
+
+  describe('Multi-page Navigation (Task 4.3)', () => {
+    it('allows navigating forward and backward between pages with boundary controls', async () => {
+      const doc = makeDoc({ id: 'doc-multi', name: 'multi.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      });
+
+      const prevBtn = screen.getByRole('button', { name: /previous page/i });
+      const nextBtn = screen.getByRole('button', { name: /next page/i });
+
+      // Page 1: Previous is disabled, Next is enabled
+      expect((prevBtn as HTMLButtonElement).disabled).toBe(true);
+      expect((nextBtn as HTMLButtonElement).disabled).toBe(false);
+
+      // Navigate to Page 2
+      fireEvent.click(nextBtn);
+      await waitFor(() => {
+        expect(screen.getByText('Page 2 of 3')).toBeDefined();
+      });
+      expect((prevBtn as HTMLButtonElement).disabled).toBe(false);
+      expect((nextBtn as HTMLButtonElement).disabled).toBe(false);
+
+      // Navigate to Page 3 (last page)
+      fireEvent.click(nextBtn);
+      await waitFor(() => {
+        expect(screen.getByText('Page 3 of 3')).toBeDefined();
+      });
+      expect((prevBtn as HTMLButtonElement).disabled).toBe(false);
+      expect((nextBtn as HTMLButtonElement).disabled).toBe(true);
+
+      // Navigate back to Page 2
+      fireEvent.click(prevBtn);
+      await waitFor(() => {
+        expect(screen.getByText('Page 2 of 3')).toBeDefined();
+      });
+      expect((prevBtn as HTMLButtonElement).disabled).toBe(false);
+      expect((nextBtn as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('navigates pages using keyboard shortcuts when editor pane has focus', async () => {
+      const doc = makeDoc({ id: 'doc-kb', name: 'keyboard.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      });
+
+      const editorSection = screen.getByRole('region', {
+        name: 'Editor Workspace',
+      });
+
+      // ArrowRight goes to Page 2
+      fireEvent.keyDown(editorSection, { key: 'ArrowRight' });
+      await waitFor(() => {
+        expect(screen.getByText('Page 2 of 3')).toBeDefined();
+      });
+
+      // ArrowLeft goes back to Page 1
+      fireEvent.keyDown(editorSection, { key: 'ArrowLeft' });
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      });
+    });
+  });
+
+  describe('Zoom Controls (Task 4.3)', () => {
+    it('adjusts zoom level on zoom in, zoom out, and reset to 100%', async () => {
+      const doc = makeDoc({ id: 'doc-zoom', name: 'zoom.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('100%')).toBeDefined();
+      });
+
+      const zoomInBtn = screen.getByRole('button', { name: /zoom in/i });
+      const zoomOutBtn = screen.getByRole('button', { name: /zoom out/i });
+      const resetBtn = screen.getByRole('button', { name: /current zoom/i });
+
+      // Zoom In to 125%
+      fireEvent.click(zoomInBtn);
+      expect(screen.getByText('125%')).toBeDefined();
+
+      // Zoom In again to 150%
+      fireEvent.click(zoomInBtn);
+      expect(screen.getByText('150%')).toBeDefined();
+
+      // Zoom Out back to 125%
+      fireEvent.click(zoomOutBtn);
+      expect(screen.getByText('125%')).toBeDefined();
+
+      // Reset zoom back to 100%
+      fireEvent.click(resetBtn);
+      expect(screen.getByText('100%')).toBeDefined();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('region', { name: /pdf page 1/i }),
+        ).toBeDefined();
+      });
+    });
+
+    it('resets page number and zoom when switching Main Document', async () => {
+      const docs = [
+        makeDoc({ id: 'doc-1', name: 'first.pdf' }),
+        makeDoc({ id: 'doc-2', name: 'second.pdf' }),
+      ];
+      render(<Workspace documents={docs} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      });
+
+      // Navigate to page 2 and zoom in to 125%
+      const nextBtn = screen.getByRole('button', { name: /next page/i });
+      const zoomInBtn = screen.getByRole('button', { name: /zoom in/i });
+      fireEvent.click(nextBtn);
+      fireEvent.click(zoomInBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        expect(screen.getByText('125%')).toBeDefined();
+      });
+
+      // Switch main document to second.pdf
+      const setMainBtn = screen.getByRole('button', {
+        name: /set "second\.pdf" as main document/i,
+      });
+      fireEvent.click(setMainBtn);
+
+      // Page and zoom should reset to 1 and 100%
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        expect(screen.getByText('100%')).toBeDefined();
+      });
+    });
+
+    it('handles fit to screen click', async () => {
+      const doc = makeDoc({ id: 'doc-fit', name: 'fit.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('100%')).toBeDefined();
+      });
+
+      const fitBtn = screen.getByRole('button', { name: /fit to screen/i });
+      expect((fitBtn as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(fitBtn);
+      // Fit button executes without error
+      expect(screen.getByRole('button', { name: /fit to screen/i })).toBeDefined();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('region', { name: /pdf page 1/i }),
+        ).toBeDefined();
+      });
+    });
+  });
 });
 

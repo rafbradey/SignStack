@@ -15,11 +15,17 @@ import {
   FileSpreadsheet,
   FileText,
 } from 'lucide-react';
-import { UploadedDocument } from '@/types';
+import { UploadedDocument, PageDimensions } from '@/types';
+import { clamp } from '@/utils';
 import { DocumentCard } from './DocumentCard';
 import { PdfPageCanvas } from '@/components/pdf';
 import { loadPdfDocument, type PDFDocumentProxy } from '@/services/pdf';
 import './Workspace.css';
+
+export const MIN_ZOOM = 0.5; // 50%
+export const MAX_ZOOM = 2.5; // 250%
+export const DEFAULT_ZOOM = 1.0; // 100%
+export const ZOOM_STEP = 0.25; // 25% step
 
 export type WorkspaceTab = 'editor' | 'result';
 
@@ -94,6 +100,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setDragOverIndex(null);
   };
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [scale, setScale] = useState<number>(DEFAULT_ZOOM);
+  const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  // When the selected main document changes, reset page, zoom, and dimension states
+  const currentDocId = mainDoc ? mainDoc.id : null;
+  const [prevDocId, setPrevDocId] = useState<string | null>(currentDocId);
+  if (currentDocId !== prevDocId) {
+    setPrevDocId(currentDocId);
+    setCurrentPage(1);
+    setScale(DEFAULT_ZOOM);
+    setPageDimensions(null);
+  }
+
   const [docState, setDocState] = useState<{
     docId: string | null;
     pdfDoc: PDFDocumentProxy | null;
@@ -103,6 +124,82 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     pdfDoc: null,
     error: null,
   });
+
+  const totalPages = docState.pdfDoc?.numPages ?? 1;
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  };
+
+  const handleZoomOut = () => {
+    setScale((prev) =>
+      Math.max(MIN_ZOOM, Math.round((prev - ZOOM_STEP) * 100) / 100),
+    );
+  };
+
+  const handleZoomIn = () => {
+    setScale((prev) =>
+      Math.min(MAX_ZOOM, Math.round((prev + ZOOM_STEP) * 100) / 100),
+    );
+  };
+
+  const handleFitToView = () => {
+    if (!viewportRef.current || !pageDimensions) {
+      setScale(DEFAULT_ZOOM);
+      return;
+    }
+    const viewport = viewportRef.current;
+    const padding = 48; // Total horizontal & vertical padding inside viewport
+    const availWidth = Math.max(100, viewport.clientWidth - padding);
+    const availHeight = Math.max(100, viewport.clientHeight - padding);
+
+    const unscaledWidth = pageDimensions.width / pageDimensions.scale;
+    const unscaledHeight = pageDimensions.height / pageDimensions.scale;
+
+    if (unscaledWidth <= 0 || unscaledHeight <= 0) {
+      setScale(DEFAULT_ZOOM);
+      return;
+    }
+
+    const fit = Math.min(
+      availWidth / unscaledWidth,
+      availHeight / unscaledHeight,
+    );
+    const clampedFit = Math.round(clamp(fit, MIN_ZOOM, MAX_ZOOM) * 100) / 100;
+    setScale(clampedFit);
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.target as HTMLElement).tagName === 'INPUT') {
+      return;
+    }
+
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      if (docState.pdfDoc && safeCurrentPage > 1) {
+        e.preventDefault();
+        handlePrevPage();
+      }
+    } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      if (docState.pdfDoc && safeCurrentPage < totalPages) {
+        e.preventDefault();
+        handleNextPage();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+      e.preventDefault();
+      handleZoomIn();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+      e.preventDefault();
+      handleZoomOut();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+      e.preventDefault();
+      setScale(DEFAULT_ZOOM);
+    }
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -267,6 +364,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <section
           className={`workspace-pane ${activeTab !== 'editor' ? 'hidden-on-mobile' : ''}`}
           aria-label="Editor Workspace"
+          tabIndex={0}
+          onKeyDown={handleEditorKeyDown}
         >
           <div className="pane-header">
             <div className="pane-title-group">
@@ -281,33 +380,55 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               )}
             </div>
 
-            <div className="pane-toolbar">
-              <Button variant="ghost" size="sm" aria-label="Zoom out" disabled>
+            <div
+              className="pane-toolbar"
+              role="toolbar"
+              aria-label="Editor view controls"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Zoom out"
+                title="Zoom out"
+                disabled={!pdfDoc || scale <= MIN_ZOOM}
+                onClick={handleZoomOut}
+              >
                 <ZoomOut size={14} />
               </Button>
-              <span
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-secondary)',
-                }}
+              <button
+                type="button"
+                className="zoom-display-btn"
+                title="Click to reset zoom to 100%"
+                aria-label={`Current zoom: ${Math.round(scale * 100)}%. Click to reset to 100%`}
+                disabled={!pdfDoc}
+                onClick={() => setScale(DEFAULT_ZOOM)}
               >
-                100%
-              </span>
-              <Button variant="ghost" size="sm" aria-label="Zoom in" disabled>
+                {Math.round(scale * 100)}%
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Zoom in"
+                title="Zoom in"
+                disabled={!pdfDoc || scale >= MAX_ZOOM}
+                onClick={handleZoomIn}
+              >
                 <ZoomIn size={14} />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 aria-label="Fit to screen"
-                disabled
+                title="Fit page to view"
+                disabled={!pdfDoc}
+                onClick={handleFitToView}
               >
                 <Maximize2 size={14} />
               </Button>
             </div>
           </div>
 
-          <div className="pane-viewport">
+          <div className="pane-viewport" ref={viewportRef}>
             {!mainDoc ? (
               <div className="viewport-empty-card">
                 <div className="viewport-empty-icon" aria-hidden="true">
@@ -339,7 +460,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </Alert>
               </div>
             ) : (
-              <PdfPageCanvas document={pdfDoc} pageNumber={1} />
+              <PdfPageCanvas
+                document={pdfDoc}
+                pageNumber={safeCurrentPage}
+                scale={scale}
+                onDimensionsChange={setPageDimensions}
+              />
             )}
           </div>
 
@@ -348,13 +474,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                disabled
+                disabled={!pdfDoc || safeCurrentPage <= 1}
                 aria-label="Previous page"
+                title="Previous page"
+                onClick={handlePrevPage}
               >
                 <ChevronLeft size={14} />
               </Button>
-              <span>Page 1 of {pdfDoc?.numPages ?? 1}</span>
-              <Button variant="ghost" size="sm" disabled aria-label="Next page">
+              <span className="page-indicator">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pdfDoc || safeCurrentPage >= totalPages}
+                aria-label="Next page"
+                title="Next page"
+                onClick={handleNextPage}
+              >
                 <ChevronRight size={14} />
               </Button>
             </div>
