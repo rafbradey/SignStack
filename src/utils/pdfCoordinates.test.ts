@@ -7,6 +7,8 @@ import {
   pdfPointToViewportPoint,
   viewportRectToPdfRect,
   pdfRectToViewportRect,
+  calculateOverlayViewportPosition,
+  calculateOverlayPdfBounds,
 } from './pdfCoordinates';
 import type { PageViewport } from '@/services/pdf';
 
@@ -167,6 +169,67 @@ describe('pdfCoordinates utilities', () => {
         width: 200,
         height: 150,
       });
+    });
+  });
+
+  describe('calculateOverlayViewportPosition', () => {
+    it('calculates pixel position from normalized coordinates', () => {
+      const pos = { x: 0.25, y: 0.5 };
+      const baseBounds = { width: 600, height: 800 };
+
+      const result = calculateOverlayViewportPosition(pos, baseBounds);
+      expect(result).toEqual({ x: 150, y: 400 });
+    });
+
+    it('clamps normalized position to [0, 1] range', () => {
+      const pos = { x: -0.5, y: 1.5 };
+      const baseBounds = { width: 500, height: 1000 };
+
+      const result = calculateOverlayViewportPosition(pos, baseBounds);
+      expect(result).toEqual({ x: 0, y: 1000 });
+    });
+  });
+
+  describe('calculateOverlayPdfBounds', () => {
+    it('calculates correct PDF point bounds taking into account bottom-left origin', () => {
+      const normPos = { x: 0.1, y: 0.2 }; // 10% from left, 20% from top
+      const overlayScale = 1.0;
+      const basePdfSize = { width: 612, height: 792 };
+      const overlayPdfSize = { width: 300, height: 200 };
+
+      const result = calculateOverlayPdfBounds(
+        normPos,
+        overlayScale,
+        basePdfSize,
+        overlayPdfSize,
+      );
+
+      // pdfX = 0.1 * 612 = 61.2
+      expect(result.x).toBeCloseTo(61.2);
+      // topOffset = 0.2 * 792 = 158.4
+      // pdfY = 792 - 158.4 - 200 = 433.6
+      expect(result.y).toBeCloseTo(433.6);
+      expect(result.width).toBe(300);
+      expect(result.height).toBe(200);
+    });
+
+    it('scales overlay dimensions with scale factor', () => {
+      const normPos = { x: 0, y: 0 };
+      const overlayScale = 0.5;
+      const basePdfSize = { width: 612, height: 792 };
+      const overlayPdfSize = { width: 400, height: 300 };
+
+      const result = calculateOverlayPdfBounds(
+        normPos,
+        overlayScale,
+        basePdfSize,
+        overlayPdfSize,
+      );
+
+      expect(result.width).toBe(200);
+      expect(result.height).toBe(150);
+      // At (0, 0) top-left: pdfY = 792 - 0 - 150 = 642
+      expect(result.y).toBe(642);
     });
   });
 });

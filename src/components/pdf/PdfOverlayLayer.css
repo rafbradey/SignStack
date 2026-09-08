@@ -1,0 +1,19 @@
+/* ==========================================================================
+   PdfOverlayLayer — renders overlay PDF page stacked on base document
+   ========================================================================== */
+
+.pdf-overlay-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  pointer-events: none; /* Allows click-through until precision editor interactions */
+  user-select: none;
+  transition: opacity var(--transition-fast);
+  will-change: transform, opacity;
+}
+
+.pdf-overlay-canvas {
+  display: block;
+  max-width: none;
+}

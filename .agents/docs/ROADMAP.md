@@ -106,6 +106,8 @@ The application has a reliable document model.
 
 Goals:
 
+- associate overlays with specific Main Document pages (page-specific overlay ownership)
+- support multiple overlays per Main Document page
 - overlay one PDF page onto another
 - define overlay coordinates
 - define dimensions
@@ -116,7 +118,7 @@ Goals:
 
 Deliverable:
 
-A basic overlay works correctly.
+A basic overlay works correctly with page-specific association and multi-overlay support.
 
 ---
 

@@ -144,3 +144,58 @@ export function pdfRectToViewportRect(
     height,
   };
 }
+
+/**
+ * Calculates rendered CSS pixel offset for an overlay page based on normalized
+ * [0, 1] position and current rendered base page viewport bounds.
+ *
+ * Zoom-independent: scales linearly with viewport width and height.
+ */
+export function calculateOverlayViewportPosition(
+  normPos: { x: number; y: number },
+  baseBounds: { width: number; height: number },
+): { x: number; y: number } {
+  const clampedX = clamp(normPos.x, 0, 1);
+  const clampedY = clamp(normPos.y, 0, 1);
+
+  return {
+    x: Math.round(clampedX * baseBounds.width),
+    y: Math.round(clampedY * baseBounds.height),
+  };
+}
+
+/**
+ * Calculates the bounding box of an overlay page in standard PDF point space (72 DPI, bottom-left origin)
+ * relative to the base document page dimensions.
+ *
+ * Converts top-left normalized browser coordinates to PDF standard coordinates:
+ * - PDF X: proportional from left edge
+ * - PDF Y: transformed from top-left browser origin to bottom-left PDF origin
+ *
+ * @param normPos Normalized position of overlay top-left [0, 1] relative to base page
+ * @param overlayScale Scale multiplier for the overlay (1.0 = 100%)
+ * @param basePdfSize Base document page size in PDF points (72 DPI)
+ * @param overlayPdfSize Overlay document page size in PDF points (72 DPI)
+ */
+export function calculateOverlayPdfBounds(
+  normPos: { x: number; y: number },
+  overlayScale: number,
+  basePdfSize: { width: number; height: number },
+  overlayPdfSize: { width: number; height: number },
+): PdfRect {
+  const scaledWidth = overlayPdfSize.width * overlayScale;
+  const scaledHeight = overlayPdfSize.height * overlayScale;
+
+  const pdfX = clamp(normPos.x, 0, 1) * basePdfSize.width;
+  // Browser Y: 0 is top; PDF Y: 0 is bottom.
+  // PDF bottom-left Y = baseHeight - (topOffset) - overlayHeight
+  const topOffset = clamp(normPos.y, 0, 1) * basePdfSize.height;
+  const pdfY = basePdfSize.height - topOffset - scaledHeight;
+
+  return {
+    x: pdfX,
+    y: pdfY,
+    width: scaledWidth,
+    height: scaledHeight,
+  };
+}

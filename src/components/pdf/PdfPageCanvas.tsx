@@ -18,6 +18,8 @@ export interface PdfPageCanvasProps {
   className?: string;
   /** Callback fired when the rendered page dimensions or viewport change */
   onDimensionsChange?: (dimensions: PageDimensions) => void;
+  /** Child layers to render over the PDF page (e.g. overlay canvas, crop boxes) */
+  children?: React.ReactNode;
 }
 
 /**
@@ -36,6 +38,7 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   rotation,
   className = '',
   onDimensionsChange,
+  children,
 }) => {
   const { canvasRef, isLoading, error, dimensions } = usePdfPage({
     document,
@@ -67,6 +70,9 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       }}
     >
       <canvas ref={canvasRef} className="pdf-page-canvas" aria-hidden="true" />
+
+      {/* Overlaid layers (e.g. overlay PDF page canvas) */}
+      {children}
 
       {/* Loading overlay during page fetch or rasterization */}
       {isLoading && (

@@ -545,6 +545,184 @@ describe('Workspace component', () => {
         expect(updatedSelect.disabled).toBe(true);
       });
     });
+
+    it('renders overlay page layer when an overlay document is selected', async () => {
+      const doc1 = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+      const doc2 = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+      render(<Workspace documents={[doc1, doc2]} />);
+
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('region', { name: 'Overlay page 1' }),
+        ).toBeDefined();
+      });
+    });
+
+    it('adjusts overlay opacity via opacity slider', async () => {
+      const doc1 = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+      const doc2 = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+      render(<Workspace documents={[doc1, doc2]} />);
+
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Overlay opacity')).toBeDefined();
+      });
+
+      const slider = screen.getByLabelText('Overlay opacity') as HTMLInputElement;
+      expect(slider.value).toBe('75');
+
+      fireEvent.change(slider, { target: { value: '50' } });
+
+      expect(slider.value).toBe('50');
+      expect(screen.getByText('50%')).toBeDefined();
+
+      const overlayRegion = screen.getByRole('region', {
+        name: 'Overlay page 1',
+      });
+      expect(overlayRegion.style.opacity).toBe('0.5');
+    });
+
+    describe('Page-Specific Overlay Association', () => {
+      it('associates overlays with specific Main Document pages and supports multiple overlays per page', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'Contract.pdf' });
+        const docOverlay1 = makeDoc({ id: 'doc-sig', name: 'Signature.pdf' });
+        const docOverlay2 = makeDoc({ id: 'doc-stamp', name: 'Stamp.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay1, docOverlay2]} />);
+
+        // 1. Add an overlay to Main Page 1 (Signature.pdf)
+        const select = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-sig' } });
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', { name: 'Overlay page 1' }),
+          ).toBeDefined();
+        });
+
+        // Set opacity for this overlay on Page 1 to 50%
+        const opacitySlider = screen.getByLabelText(
+          'Overlay opacity',
+        ) as HTMLInputElement;
+        fireEvent.change(opacitySlider, { target: { value: '50' } });
+        expect(opacitySlider.value).toBe('50');
+
+        // 2. Navigate to Main Page 2 → overlay is absent
+        const nextPageBtn = screen.getByLabelText('Next page');
+        fireEvent.click(nextPageBtn);
+
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+        expect(
+          screen.queryByRole('region', { name: 'Overlay page 1' }),
+        ).toBeNull();
+        expect(select.value).toBe('');
+
+        // 3. Return to Main Page 1 → overlay returns with preserved opacity
+        const prevPageBtn = screen.getByLabelText('Previous page');
+        fireEvent.click(prevPageBtn);
+
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+        const returnedOverlay = screen.getByRole('region', {
+          name: 'Overlay page 1',
+        });
+        expect(returnedOverlay).toBeDefined();
+        expect(returnedOverlay.style.opacity).toBe('0.5');
+
+        // 4. Add a different overlay to Main Page 2 (Stamp.pdf)
+        fireEvent.click(nextPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+        fireEvent.change(select, { target: { value: 'doc-stamp' } });
+        await waitFor(() => {
+          expect(
+            screen.getByRole('region', { name: 'Overlay page 1' }),
+          ).toBeDefined();
+        });
+
+        // Change Stamp.pdf overlay page to page 2 (mockDoc has 3 pages)
+        const nextOverlayPageBtn = screen.getByLabelText('Next overlay page');
+        fireEvent.click(nextOverlayPageBtn);
+        await waitFor(() => {
+          expect(screen.getByText('2/3')).toBeDefined();
+        });
+
+        // 5. Navigate between pages → each overlay appears only on its assigned page
+        fireEvent.click(prevPageBtn); // back to Page 1
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+        // On Page 1, Signature overlay (p. 1) is active and opacity is 50%
+        expect(
+          screen.getByRole('region', { name: 'Overlay page 1' }).style.opacity,
+        ).toBe('0.5');
+        expect(screen.getByText('1/3')).toBeDefined();
+
+        fireEvent.click(nextPageBtn); // to Page 2
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+        });
+        // On Page 2, Stamp overlay (p. 2) is visible
+        expect(
+          screen.getByRole('region', { name: 'Overlay page 2' }),
+        ).toBeDefined();
+        expect(screen.getByText('2/3')).toBeDefined();
+
+        // 6. Add two overlays to the same Main Page → both are preserved
+        const addOverlayBtn = screen.getByLabelText('Add another overlay');
+        fireEvent.click(addOverlayBtn);
+
+        // Now select doc-sig as the second overlay on Page 2
+        fireEvent.change(select, { target: { value: 'doc-sig' } });
+
+        await waitFor(() => {
+          // Both overlays on Page 2 exist in DOM
+          const regions = screen.getAllByRole('region', {
+            name: /Overlay page/,
+          });
+          expect(regions.length).toBe(2);
+        });
+
+        // 7. Verify each overlay retains its own properties
+        // The newly added overlay (layer 2) is active and layer indicator shows 2/2
+        expect(screen.getByText('2/2')).toBeDefined();
+        const prevLayerBtn = screen.getByLabelText('Previous layer');
+        expect(prevLayerBtn).toBeDefined();
+
+        // Layer 2 opacity adjusted to 90%
+        fireEvent.change(screen.getByLabelText('Overlay opacity'), {
+          target: { value: '90' },
+        });
+        expect(
+          (screen.getByLabelText('Overlay opacity') as HTMLInputElement).value,
+        ).toBe('90');
+
+        // Switch to Layer 1
+        fireEvent.click(prevLayerBtn);
+        expect(screen.getByText('1/2')).toBeDefined();
+        // Layer 1 retained its default 75% opacity
+        expect(
+          (screen.getByLabelText('Overlay opacity') as HTMLInputElement).value,
+        ).toBe('75');
+      });
+    });
   });
 });
 

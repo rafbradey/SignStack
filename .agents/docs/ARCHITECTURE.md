@@ -151,20 +151,52 @@ The exact implementation should be documented when developed.
 
 # Overlay Model
 
-An overlay should conceptually contain information such as:
+An overlay represents the placement of content from a source document page onto a specific page of the Main Document.
 
-- source document
-- source page
-- crop region
-- target page
-- x position
-- y position
-- width
-- height
-- opacity
-- rotation if eventually required
+Overlays are strictly **owned by a specific Main Document page**:
 
-The exact TypeScript model should be determined during implementation.
+```text
+Main Document
+├── Page 1
+│   └── Overlay A (e.g. Signature from Doc 2, Page 1)
+├── Page 2
+│   └── Overlay B (e.g. Date stamp from Doc 3, Page 1)
+└── Page 3
+    ├── Overlay C (e.g. Stamp from Doc 2, Page 2)
+    └── Overlay D (e.g. Signature from Doc 4, Page 1)
+```
+
+### Domain Model (`PageOverlay`)
+
+An overlay contains:
+
+- **Identity**:
+  - `id`: Unique stable identifier (UUID)
+- **Main Page Ownership (Target)**:
+  - `mainDocumentId`: ID of the destination document
+  - `mainPageNumber`: 1-based page index of the destination document
+- **Source Selection**:
+  - `overlayDocumentId`: ID of the source PDF document
+  - `overlayPageNumber`: 1-based page index of the source PDF document
+- **Positioning & Transform**:
+  - `position`: Normalized coordinates `{ x, y }` in `[0, 1]` relative to base page top-left origin
+  - `scale`: Scale multiplier relative to base page dimensions (default: 1.0)
+  - `opacity`: Transparency level in `[0, 1]` (default: 0.75)
+  - `rotation`: Rotation in degrees (0, 90, 180, 270)
+- **Optional Crop Region** (Phase 7):
+  - `cropRect`: Optional sub-region of the overlay page to extract
+
+### Multi-Overlay Support
+
+Multiple overlays can be attached to the same Main Document page. When the user navigates to a page, all overlays associated with `(mainDocumentId, mainPageNumber)` are rendered. Navigating away unmounts them from the canvas, but preserves their state in the document model.
+
+### Relationship to Eventual PDF Generation (Phase 9)
+
+In Phase 9, PDF generation converts each `PageOverlay` into an embedded PDF form XObject / page copy using `pdf-lib`:
+- For each base page, iterate over its associated overlays.
+- Copy each overlay page from its source document.
+- Convert normalized `(x, y)` and `scale` to standard 72 DPI PDF point coordinates `(pdfX, pdfY, width, height)` using `calculateOverlayPdfBounds`.
+- Draw the overlay onto the base page with the specified `opacity`.
 
 ---
 
