@@ -466,5 +466,85 @@ describe('Workspace component', () => {
       }
     });
   });
+
+  describe('overlay document selection', () => {
+    it('shows overlay selector with non-main documents as options', async () => {
+      const doc1 = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+      const doc2 = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+      render(<Workspace documents={[doc1, doc2]} />);
+
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+      expect(select).toBeDefined();
+
+      // The main document (doc1, first in list) should NOT appear as an option
+      const options = Array.from(select.querySelectorAll('option'));
+      const optionValues = options.map((o) => o.value);
+      expect(optionValues).not.toContain('doc-main');
+      expect(optionValues).toContain('doc-overlay');
+    });
+
+    it('disables overlay selector when fewer than 2 documents', () => {
+      const doc1 = makeDoc({ id: 'doc-1', name: 'solo.pdf' });
+      render(<Workspace documents={[doc1]} />);
+
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+      expect(select.disabled).toBe(true);
+    });
+
+    it('shows overlay page controls after selecting an overlay document', async () => {
+      const doc1 = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+      const doc2 = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+      render(<Workspace documents={[doc1, doc2]} />);
+
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+
+      fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+      // Wait for the overlay PDF to load and page controls to appear
+      await waitFor(() => {
+        expect(screen.getByLabelText('Previous overlay page')).toBeDefined();
+        expect(screen.getByLabelText('Next overlay page')).toBeDefined();
+      });
+    });
+
+    it('clears overlay selection when the overlay document is removed', async () => {
+      const doc1 = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+      const doc2 = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+      const { rerender } = render(
+        <Workspace documents={[doc1, doc2]} />,
+      );
+
+      // Select the overlay document
+      const select = screen.getByLabelText(
+        'Select overlay document',
+      ) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+      // Wait for overlay to load
+      await waitFor(() => {
+        expect(screen.getByLabelText('Previous overlay page')).toBeDefined();
+      });
+
+      // Remove the overlay document by rerendering with only the main doc
+      rerender(<Workspace documents={[doc1]} />);
+
+      // The selector should be disabled (only 1 doc) and page controls should be gone
+      await waitFor(() => {
+        const updatedSelect = screen.getByLabelText(
+          'Select overlay document',
+        ) as HTMLSelectElement;
+        expect(updatedSelect.disabled).toBe(true);
+      });
+    });
+  });
 });
 

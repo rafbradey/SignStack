@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Sliders,
   FileSpreadsheet,
   FileText,
 } from 'lucide-react';
@@ -93,6 +92,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     documents.find((doc) => doc.id === activeMainDocId) ??
     (documents.length > 0 ? documents[0] : null);
 
+  // Overlay Document state
+  const [overlayDocId, setOverlayDocId] = useState<string | null>(null);
+  const [overlayPageNumber, setOverlayPageNumber] = useState<number>(1);
+
   const handleSelectMainDoc = (id: string) => {
     setInternalMainDocId(id);
     onSelectMainDocument?.(id);
@@ -146,6 +149,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setPageDimensions(null);
   }
 
+  // Clear overlay selection if the overlay document was removed from the queue
+  // or if it now conflicts with the current main document
+  if (overlayDocId !== null) {
+    const overlayStillExists = documents.some((doc) => doc.id === overlayDocId);
+    if (!overlayStillExists || overlayDocId === currentDocId) {
+      setOverlayDocId(null);
+      setOverlayPageNumber(1);
+    }
+  }
+
   const [docState, setDocState] = useState<{
     docId: string | null;
     pdfDoc: PDFDocumentProxy | null;
@@ -158,6 +171,80 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
   const totalPages = docState.pdfDoc?.numPages ?? 1;
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // --- Overlay PDF loading ---
+  const [overlayDocState, setOverlayDocState] = useState<{
+    docId: string | null;
+    pdfDoc: PDFDocumentProxy | null;
+    error: string | null;
+  }>({
+    docId: null,
+    pdfDoc: null,
+    error: null,
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!overlayDocId) {
+      return;
+    }
+
+    const overlayDoc = documents.find((doc) => doc.id === overlayDocId);
+    if (!overlayDoc) {
+      return;
+    }
+
+    loadPdfDocument(overlayDoc.file, overlayDoc.id)
+      .then((doc) => {
+        if (!isCancelled) {
+          setOverlayDocState({ docId: overlayDocId, pdfDoc: doc, error: null });
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          setOverlayDocState({
+            docId: overlayDocId,
+            pdfDoc: null,
+            error: err instanceof Error ? err.message : 'Failed to load overlay document.',
+          });
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [overlayDocId, documents]);
+
+  const overlayPdfDoc =
+    overlayDocId && overlayDocState.docId === overlayDocId
+      ? overlayDocState.pdfDoc
+      : null;
+  const overlayTotalPages = overlayPdfDoc?.numPages ?? 0;
+  const safeOverlayPage = overlayTotalPages > 0
+    ? Math.min(Math.max(1, overlayPageNumber), overlayTotalPages)
+    : 1;
+
+  const handleOverlayDocChange = (newDocId: string) => {
+    if (newDocId === '') {
+      setOverlayDocId(null);
+      setOverlayPageNumber(1);
+    } else {
+      setOverlayDocId(newDocId);
+      setOverlayPageNumber(1);
+    }
+  };
+
+  const handleOverlayPrevPage = () => {
+    setOverlayPageNumber((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleOverlayNextPage = () => {
+    setOverlayPageNumber((prev) => Math.min(overlayTotalPages, prev + 1));
+  };
+
+  // Documents available for overlay selection (everything except the current main)
+  const overlayDocOptions = documents.filter((doc) => doc.id !== currentDocId);
 
   const handleDimensionsChange = useCallback(
     (dims: PageDimensions) => {
@@ -528,9 +615,54 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               </Button>
             </div>
 
-            <div className="editor-control-group">
-              <Sliders size={14} style={{ color: 'var(--text-muted)' }} />
-              <span>Overlay Controls: Ready</span>
+            <div className="editor-control-group overlay-controls">
+              <Layers size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <select
+                className="overlay-select"
+                value={overlayDocId ?? ''}
+                disabled={overlayDocOptions.length === 0}
+                aria-label="Select overlay document"
+                onChange={(e) => handleOverlayDocChange(e.target.value)}
+              >
+                <option value="" disabled>
+                  {overlayDocOptions.length === 0
+                    ? 'Need 2+ documents'
+                    : '— Select Overlay —'}
+                </option>
+                {overlayDocOptions.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name}
+                  </option>
+                ))}
+              </select>
+
+              {overlayDocId && overlayTotalPages > 0 && (
+                <div className="overlay-page-controls">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={safeOverlayPage <= 1}
+                    aria-label="Previous overlay page"
+                    title="Previous overlay page"
+                    onClick={handleOverlayPrevPage}
+                  >
+                    <ChevronLeft size={12} />
+                  </Button>
+                  <span className="page-indicator">
+                    {safeOverlayPage}/{overlayTotalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={safeOverlayPage >= overlayTotalPages}
+                    aria-label="Next overlay page"
+                    title="Next overlay page"
+                    onClick={handleOverlayNextPage}
+                  >
+                    <ChevronRight size={12} />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </section>

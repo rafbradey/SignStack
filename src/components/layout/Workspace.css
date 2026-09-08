@@ -311,6 +311,47 @@
   color: var(--text-secondary);
 }
 
+/* Overlay Controls */
+.overlay-controls {
+  gap: var(--space-2);
+}
+
+.overlay-select {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  max-width: 160px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.overlay-select:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.overlay-select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.overlay-select:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.overlay-page-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-1);
+  border-left: 1px solid var(--border-default);
+}
+
 /* Responsive Breakpoint: Tablet & Mobile (< 1024px) */
 @media (max-width: 1024px) {
   .workspace-panes {
