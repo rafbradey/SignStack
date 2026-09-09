@@ -343,28 +343,28 @@ describe('Workspace component', () => {
       render(<Workspace documents={[doc]} />);
 
       await waitFor(() => {
-        expect(screen.getByText('100%')).toBeDefined();
+        expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
       });
 
-      const zoomInBtn = screen.getByRole('button', { name: /zoom in/i });
-      const zoomOutBtn = screen.getByRole('button', { name: /zoom out/i });
+      const zoomInBtn = screen.getByRole('button', { name: /^zoom in$/i });
+      const zoomOutBtn = screen.getByRole('button', { name: /^zoom out$/i });
       const resetBtn = screen.getByRole('button', { name: /current zoom/i });
 
       // Zoom In to 125%
       fireEvent.click(zoomInBtn);
-      expect(screen.getByText('125%')).toBeDefined();
+      expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
 
       // Zoom In again to 150%
       fireEvent.click(zoomInBtn);
-      expect(screen.getByText('150%')).toBeDefined();
+      expect(screen.getByLabelText(/current zoom: 150%/i)).toBeDefined();
 
       // Zoom Out back to 125%
       fireEvent.click(zoomOutBtn);
-      expect(screen.getByText('125%')).toBeDefined();
+      expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
 
       // Reset zoom back to 100%
       fireEvent.click(resetBtn);
-      expect(screen.getByText('100%')).toBeDefined();
+      expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
 
       await waitFor(() => {
         expect(
@@ -385,14 +385,14 @@ describe('Workspace component', () => {
       });
 
       // Navigate to page 2 and zoom in to 125%
-      const nextBtn = screen.getByRole('button', { name: /next page/i });
-      const zoomInBtn = screen.getByRole('button', { name: /zoom in/i });
+      const nextBtn = screen.getByRole('button', { name: /^next page$/i });
+      const zoomInBtn = screen.getByRole('button', { name: /^zoom in$/i });
       fireEvent.click(nextBtn);
       fireEvent.click(zoomInBtn);
 
       await waitFor(() => {
         expect(screen.getByText('Page 2 of 3')).toBeDefined();
-        expect(screen.getByText('125%')).toBeDefined();
+        expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
       });
 
       // Switch main document to second.pdf
@@ -404,7 +404,7 @@ describe('Workspace component', () => {
       // Page and zoom should reset to 1 and 100%
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeDefined();
-        expect(screen.getByText('100%')).toBeDefined();
+        expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
       });
     });
 
@@ -413,14 +413,14 @@ describe('Workspace component', () => {
       render(<Workspace documents={[doc]} />);
 
       await waitFor(() => {
-        expect(screen.getByText('100%')).toBeDefined();
+        expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
       });
 
-      const fitBtn = screen.getByRole('button', { name: /fit to screen/i });
+      const fitBtn = screen.getByRole('button', { name: /^fit to screen$/i });
       expect((fitBtn as HTMLButtonElement).disabled).toBe(false);
       fireEvent.click(fitBtn);
       // Fit button executes without error
-      expect(screen.getByRole('button', { name: /fit to screen/i })).toBeDefined();
+      expect(screen.getByRole('button', { name: /^fit to screen$/i })).toBeDefined();
 
       await waitFor(() => {
         expect(
@@ -454,7 +454,7 @@ describe('Workspace component', () => {
       try {
         render(<Workspace documents={[doc]} />);
         await waitFor(() => {
-          expect(screen.getByText('100%')).toBeDefined();
+          expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
         });
       } finally {
         if (originalClientWidth) {
@@ -1444,6 +1444,107 @@ describe('Workspace component', () => {
 
         // Preview overlay has no crop handles inside it
         expect(previewOverlay.querySelector('.crop-selection-box')).toBeNull();
+      });
+    });
+
+    describe('Synchronized Preview Controls & View Modes (Phase 8: Task 8.2)', () => {
+      it('renders view controls, page navigation, and live badge in Result Preview', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        // Live status badge
+        expect(screen.getByText('Live Composite')).toBeDefined();
+
+        // Preview view controls toolbar
+        expect(
+          screen.getByRole('toolbar', { name: /result preview view controls/i }),
+        ).toBeDefined();
+
+        // Preview page navigation
+        expect(screen.getByRole('button', { name: /previous preview page/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /next preview page/i })).toBeDefined();
+
+        // Preview zoom controls
+        expect(screen.getByRole('button', { name: /preview zoom in/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /preview zoom out/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /fit preview to screen/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /sync preview zoom with editor/i })).toBeDefined();
+      });
+
+      it('synchronizes page navigation between Editor and Result Preview', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+
+        // Click next page in Result Preview
+        const previewNextBtn = screen.getByRole('button', { name: /next preview page/i });
+        fireEvent.click(previewNextBtn);
+
+        // Both Editor and Result Preview indicators should update to Page 2
+        await waitFor(() => {
+          expect(screen.getByText('Page 2 of 3')).toBeDefined();
+          expect(screen.getByLabelText('Preview page 2 of 3')).toBeDefined();
+        });
+      });
+
+      it('adjusts preview zoom independently without modifying editor zoom', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+
+        // Editor starts at 100%
+        expect(screen.getByLabelText(/Current zoom: 100%/i)).toBeDefined();
+
+        // Zoom in on Result Preview
+        const previewZoomInBtn = screen.getByRole('button', { name: /preview zoom in/i });
+        fireEvent.click(previewZoomInBtn);
+
+        // Preview zoom updates to 125%
+        await waitFor(() => {
+          expect(screen.getByLabelText(/Current preview zoom: 125%/i)).toBeDefined();
+        });
+
+        // Editor zoom should still be 100%
+        expect(screen.getByLabelText(/Current zoom: 100%/i)).toBeDefined();
+        expect(screen.getByText(/Custom Zoom • 100% Client-Side/i)).toBeDefined();
+      });
+
+      it('toggles Sync mode to synchronize preview zoom with editor zoom', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        await waitFor(() => {
+          expect(screen.getByText('Page 1 of 3')).toBeDefined();
+        });
+
+        const editorZoomInBtn = screen.getByRole('button', { name: /^zoom in$/i });
+        fireEvent.click(editorZoomInBtn);
+
+        expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
+
+        // Click Sync button in Result Preview
+        const syncBtn = screen.getByRole('button', { name: /sync preview zoom with editor/i });
+        fireEvent.click(syncBtn);
+
+        // Preview zoom now matches Editor's 125%
+        await waitFor(() => {
+          expect(screen.getByLabelText(/current preview zoom: 125%/i)).toBeDefined();
+          expect(screen.getByText(/Synced with Editor • 100% Client-Side/i)).toBeDefined();
+        });
+
+        // Click Fit to Page button to switch back to Auto-Fit
+        const fitBtn = screen.getByRole('button', { name: /fit preview to screen/i });
+        fireEvent.click(fitBtn);
+
+        await waitFor(() => {
+          expect(screen.getByText(/Auto-Fit • 100% Client-Side/i)).toBeDefined();
+        });
       });
     });
   });

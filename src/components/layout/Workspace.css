@@ -174,6 +174,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background-color: var(--border-subtle);
+  margin: 0 var(--space-1);
+  flex-shrink: 0;
 }
 
 /* Zoom display button in toolbar */

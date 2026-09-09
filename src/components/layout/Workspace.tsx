@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Link2,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -156,6 +157,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [scale, setScale] = useState<number>(DEFAULT_ZOOM);
   const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const previewViewportRef = useRef<HTMLDivElement>(null);
   const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const panStateRef = useRef<{
@@ -164,7 +166,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     startScrollLeft: number;
     startScrollTop: number;
     pointerId: number;
+    viewportElement: HTMLDivElement;
   } | null>(null);
+
+  // Preview scale mode and values
+  const [previewScaleMode, setPreviewScaleMode] = useState<'fit' | 'sync' | 'manual'>('fit');
+  const [fitPreviewScale, setFitPreviewScale] = useState<number>(DEFAULT_ZOOM);
+  const [manualPreviewScale, setManualPreviewScale] = useState<number>(DEFAULT_ZOOM);
 
   // Track document ID for which initial auto fit-to-view has already executed
   const [fittedDocId, setFittedDocId] = useState<string | null>(null);
@@ -177,6 +185,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setCurrentPage(1);
     setScale(DEFAULT_ZOOM);
     setPageDimensions(null);
+    setFittedDocId(null);
+    setPreviewScaleMode('fit');
+    setFitPreviewScale(DEFAULT_ZOOM);
+    setManualPreviewScale(DEFAULT_ZOOM);
   }
 
   // Prune overlays if any referenced document was removed or if it conflicts with current mainDoc
@@ -393,6 +405,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     );
   };
 
+  const updatePreviewFit = useCallback(
+    (dims?: PageDimensions | null) => {
+      const targetDims = dims ?? pageDimensions;
+      if (previewViewportRef.current && targetDims) {
+        if (
+          previewViewportRef.current.clientWidth > 100 &&
+          previewViewportRef.current.clientHeight > 100
+        ) {
+          const fit = calculateFitScale(previewViewportRef.current, targetDims);
+          setFitPreviewScale(fit);
+          return fit;
+        }
+      }
+      return DEFAULT_ZOOM;
+    },
+    [pageDimensions],
+  );
+
   const handleDimensionsChange = useCallback(
     (dims: PageDimensions) => {
       setPageDimensions(dims);
@@ -407,9 +437,47 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           setScale(fit);
         }
       }
+      // Compute preview fit scale
+      if (previewViewportRef.current) {
+        if (
+          previewViewportRef.current.clientWidth > 100 &&
+          previewViewportRef.current.clientHeight > 100
+        ) {
+          const previewFit = calculateFitScale(previewViewportRef.current, dims);
+          setFitPreviewScale(previewFit);
+        }
+      }
     },
     [currentDocId, fittedDocId],
   );
+
+  // Recalculate preview fit on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (previewScaleMode === 'fit') {
+        updatePreviewFit();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [previewScaleMode, updatePreviewFit]);
+
+  // Recalculate preview fit when switching to Result Preview tab on mobile
+  useEffect(() => {
+    if (activeTab === 'result' && previewScaleMode === 'fit') {
+      const timer = setTimeout(() => {
+        updatePreviewFit();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, previewScaleMode, updatePreviewFit]);
+
+  const effectivePreviewScale =
+    previewScaleMode === 'sync'
+      ? scale
+      : previewScaleMode === 'fit'
+        ? fitPreviewScale
+        : manualPreviewScale;
 
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(1, prev - 1));
@@ -438,6 +506,37 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     }
     const fit = calculateFitScale(viewportRef.current, pageDimensions);
     setScale(fit);
+  };
+
+  // Preview zoom handlers
+  const handlePreviewZoomIn = () => {
+    setPreviewScaleMode('manual');
+    setManualPreviewScale((prev) => {
+      const current = previewScaleMode === 'manual' ? prev : effectivePreviewScale;
+      return Math.min(MAX_ZOOM, Math.round((current + ZOOM_STEP) * 100) / 100);
+    });
+  };
+
+  const handlePreviewZoomOut = () => {
+    setPreviewScaleMode('manual');
+    setManualPreviewScale((prev) => {
+      const current = previewScaleMode === 'manual' ? prev : effectivePreviewScale;
+      return Math.max(MIN_ZOOM, Math.round((current - ZOOM_STEP) * 100) / 100);
+    });
+  };
+
+  const handlePreviewResetZoom = () => {
+    setPreviewScaleMode('manual');
+    setManualPreviewScale(DEFAULT_ZOOM);
+  };
+
+  const handlePreviewFitToView = () => {
+    setPreviewScaleMode('fit');
+    updatePreviewFit();
+  };
+
+  const handleTogglePreviewSync = () => {
+    setPreviewScaleMode((prev) => (prev === 'sync' ? 'fit' : 'sync'));
   };
 
   const handleEditorKeyDown = (e: React.KeyboardEvent) => {
@@ -512,13 +611,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Pan if Spacebar is pressed (left click) or if middle-mouse button (button 1) is clicked
     const shouldPan = isSpacePressed || e.button === 1;
-    if (!shouldPan || !viewportRef.current) return;
+    if (!shouldPan) return;
 
+    const targetEl = e.currentTarget;
     e.preventDefault();
     e.stopPropagation();
 
     try {
-      e.currentTarget.setPointerCapture(e.pointerId);
+      targetEl.setPointerCapture(e.pointerId);
     } catch {
       // Safe fallback
     }
@@ -526,22 +626,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     panStateRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      startScrollLeft: viewportRef.current.scrollLeft,
-      startScrollTop: viewportRef.current.scrollTop,
+      startScrollLeft: targetEl.scrollLeft,
+      startScrollTop: targetEl.scrollTop,
       pointerId: e.pointerId,
+      viewportElement: targetEl,
     };
     setIsPanning(true);
   };
 
   const handleViewportPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const state = panStateRef.current;
-    if (!state || state.pointerId !== e.pointerId || !viewportRef.current) return;
+    if (!state || state.pointerId !== e.pointerId) return;
 
     const deltaX = e.clientX - state.startX;
     const deltaY = e.clientY - state.startY;
 
-    viewportRef.current.scrollLeft = state.startScrollLeft - deltaX;
-    viewportRef.current.scrollTop = state.startScrollTop - deltaY;
+    state.viewportElement.scrollLeft = state.startScrollLeft - deltaX;
+    state.viewportElement.scrollTop = state.startScrollTop - deltaY;
   };
 
   const handleViewportPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1112,12 +1213,104 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           <div className="pane-header">
             <div className="pane-title-group">
               <span className="pane-title">Result Preview</span>
-              <Badge variant="primary" size="sm" withDot>
-                Live Preview
+              <Badge variant="success" size="sm" withDot>
+                Live Composite
               </Badge>
             </div>
 
-            <div className="pane-toolbar">
+            <div
+              className="pane-toolbar"
+              role="toolbar"
+              aria-label="Result preview view controls"
+            >
+              {/* Synchronized Page Navigation in Preview */}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pdfDoc || safeCurrentPage <= 1}
+                aria-label="Previous preview page"
+                title="Previous page"
+                onClick={handlePrevPage}
+              >
+                <ChevronLeft size={14} />
+              </Button>
+              <span
+                className="page-indicator"
+                aria-label={`Preview page ${safeCurrentPage} of ${totalPages}`}
+              >
+                {safeCurrentPage} / {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pdfDoc || safeCurrentPage >= totalPages}
+                aria-label="Next preview page"
+                title="Next page"
+                onClick={handleNextPage}
+              >
+                <ChevronRight size={14} />
+              </Button>
+
+              <div className="toolbar-divider" />
+
+              {/* Preview Zoom Controls */}
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Preview zoom out"
+                title="Zoom out preview"
+                disabled={!pdfDoc || effectivePreviewScale <= MIN_ZOOM}
+                onClick={handlePreviewZoomOut}
+              >
+                <ZoomOut size={14} />
+              </Button>
+              <button
+                type="button"
+                className="zoom-display-btn"
+                title="Click to reset preview zoom to 100%"
+                aria-label={`Current preview zoom: ${Math.round(effectivePreviewScale * 100)}%. Click to reset to 100%`}
+                disabled={!pdfDoc}
+                onClick={handlePreviewResetZoom}
+              >
+                {Math.round(effectivePreviewScale * 100)}%
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Preview zoom in"
+                title="Zoom in preview"
+                disabled={!pdfDoc || effectivePreviewScale >= MAX_ZOOM}
+                onClick={handlePreviewZoomIn}
+              >
+                <ZoomIn size={14} />
+              </Button>
+
+              {/* Fit & Sync Mode Toggles */}
+              <Button
+                variant={previewScaleMode === 'fit' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-label="Fit preview to screen"
+                title="Fit preview page to view"
+                disabled={!pdfDoc}
+                onClick={handlePreviewFitToView}
+              >
+                <Maximize2 size={14} />
+                Fit
+              </Button>
+              <Button
+                variant={previewScaleMode === 'sync' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-label="Sync preview zoom with editor"
+                title="Sync preview zoom with editor zoom"
+                disabled={!pdfDoc}
+                onClick={handleTogglePreviewSync}
+              >
+                <Link2 size={14} />
+                Sync
+              </Button>
+
+              <div className="toolbar-divider" />
+
               <Button
                 variant="primary"
                 size="sm"
@@ -1130,7 +1323,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             </div>
           </div>
 
-          <div className="pane-viewport">
+          <div
+            ref={previewViewportRef}
+            className={`pane-viewport ${isSpacePressed ? 'is-space-pressed' : ''} ${isPanning ? 'is-panning' : ''}`.trim()}
+            onPointerDown={handleViewportPointerDown}
+            onPointerMove={handleViewportPointerMove}
+            onPointerUp={handleViewportPointerUp}
+          >
             {!mainDoc ? (
               <div className="viewport-empty-card">
                 <div
@@ -1165,7 +1364,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               <PdfPageCanvas
                 document={pdfDoc}
                 pageNumber={safeCurrentPage}
-                scale={scale}
+                scale={effectivePreviewScale}
                 ariaLabel={`Result preview page ${safeCurrentPage}`}
                 className="result-preview-canvas"
               >
@@ -1180,7 +1379,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       key={`preview-${overlay.id}`}
                       document={proxy}
                       pageNumber={overlay.overlayPageNumber}
-                      scale={scale * overlay.scale}
+                      scale={effectivePreviewScale * overlay.scale}
                       opacity={overlay.opacity}
                       position={renderPos}
                       normalizedPosition={overlay.position}
@@ -1220,7 +1419,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                   color: 'var(--text-muted)',
                 }}
               >
-                100% Client-Side
+                {previewScaleMode === 'fit'
+                  ? 'Auto-Fit'
+                  : previewScaleMode === 'sync'
+                    ? 'Synced with Editor'
+                    : 'Custom Zoom'}{' '}
+                • 100% Client-Side
               </span>
             </div>
           </div>
