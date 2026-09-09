@@ -691,7 +691,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       if (e.key === ' ' && !isInput && !e.repeat) {
         e.preventDefault();
         setIsSpacePressed(true);
-      } else if (e.key === 'Escape') {
+        return;
+      }
+
+      if (e.key === 'Escape') {
         if (isCropping) {
           e.preventDefault();
           setIsCropping(false);
@@ -699,6 +702,37 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           e.preventDefault();
           setWorkspaceLayout('split');
         }
+        return;
+      }
+
+      // Page Navigation shortcuts: [ or PageUp -> previous page; ] or PageDown -> next page
+      if (!isInput && (e.key === '[' || e.key === 'PageUp')) {
+        e.preventDefault();
+        setCurrentPage((prev) => Math.max(1, prev - 1));
+        return;
+      }
+      if (!isInput && (e.key === ']' || e.key === 'PageDown')) {
+        e.preventDefault();
+        setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+        return;
+      }
+
+      // Zoom Controls shortcuts: + / = -> zoom in; - / _ -> zoom out; 0 -> reset zoom
+      if (!isInput && (e.key === '+' || e.key === '=') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      if (!isInput && (e.key === '-' || e.key === '_') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleZoomOut();
+        return;
+      }
+      if (!isInput && e.key === '0' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setEditorScaleMode('manual');
+        setScale(DEFAULT_ZOOM);
+        return;
       }
     };
 
@@ -723,7 +757,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       window.removeEventListener('keyup', handleGlobalKeyUp);
       window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [isCropping, workspaceLayout]);
+  }, [isCropping, workspaceLayout, totalPages]);
 
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Pan if Spacebar is pressed (left click) or if middle-mouse button (button 1) is clicked
@@ -822,6 +856,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
   return (
     <div className="workspace-container">
+      {/* Screen reader live status announcement */}
+      <div
+        className="sr-only"
+        aria-label="Document status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {mainDoc
+          ? `Document: page ${safeCurrentPage} of ${totalPages}`
+          : 'No document loaded'}
+      </div>
+
       {/* Top Document Tray */}
       <section
         className="document-tray"

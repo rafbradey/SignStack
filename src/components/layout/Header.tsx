@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Button } from '@/components/ui';
-import { Layers, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Layers, ShieldCheck, HelpCircle, Keyboard } from 'lucide-react';
 import { AboutModal } from './AboutModal';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import './Header.css';
 
 export interface HeaderProps {
@@ -10,6 +11,28 @@ export interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ rightActions }) => {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Global listener for '?' key to toggle shortcuts modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+      if (isInput) return;
+
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <>
@@ -40,6 +63,15 @@ export const Header: React.FC<HeaderProps> = ({ rightActions }) => {
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => setIsShortcutsOpen(true)}
+            leftIcon={<Keyboard size={15} />}
+            title="Keyboard Shortcuts (?)"
+          >
+            Shortcuts
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setIsAboutOpen(true)}
             leftIcon={<HelpCircle size={15} />}
           >
@@ -51,6 +83,12 @@ export const Header: React.FC<HeaderProps> = ({ rightActions }) => {
 
       {/* About & Privacy Information Modal */}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+
+      {/* Keyboard Shortcuts Reference Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
     </>
   );
 };

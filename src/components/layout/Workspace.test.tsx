@@ -463,6 +463,9 @@ describe('Workspace component', () => {
             'clientWidth',
             originalClientWidth,
           );
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          delete (HTMLElement.prototype as any).clientWidth;
         }
         if (originalClientHeight) {
           Object.defineProperty(
@@ -470,6 +473,9 @@ describe('Workspace component', () => {
             'clientHeight',
             originalClientHeight,
           );
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          delete (HTMLElement.prototype as any).clientHeight;
         }
       }
     });
@@ -1836,6 +1842,73 @@ describe('Workspace component', () => {
         ).toBeGreaterThanOrEqual(1);
         expect(container.querySelector('.viewport-loading-card')).toBeDefined();
       });
+    });
+  });
+
+  describe('Keyboard Navigation & Accessibility Polish (Phase 11: Task 11.3)', () => {
+    it('renders an ARIA live region for screen readers', () => {
+      const doc = makeDoc({ id: 'doc-live', name: 'accessible.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      const liveRegion = screen.getByLabelText('Document status');
+      expect(liveRegion).toBeDefined();
+      expect(liveRegion.getAttribute('aria-live')).toBe('polite');
+      expect(liveRegion.textContent).toContain('Document: page 1 of');
+    });
+
+    it('navigates pages forward and backward using keyboard shortcuts ] and [', async () => {
+      const doc = makeDoc({ id: 'doc-pages-shortcut', name: 'pages-shortcut.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Press ']' to advance page
+      fireEvent.keyDown(window, { key: ']' });
+      await waitFor(() => {
+        expect(screen.getByText('Page 2 of 3')).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Press '[' to go back
+      fireEvent.keyDown(window, { key: '[' });
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeDefined();
+      }, { timeout: 3000 });
+    });
+
+    it('adjusts zoom level using keyboard shortcuts +, -, and 0', async () => {
+      const doc = makeDoc({ id: 'doc-zoom-shortcut', name: 'zoom-shortcut.pdf' });
+      render(<Workspace documents={[doc]} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /pdf page 1/i })).toBeDefined();
+        expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Press '+' to zoom in (100% -> 125%)
+      fireEvent.keyDown(window, { key: '+' });
+      await waitFor(() => {
+        expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Press '-' to zoom out (125% -> 100%)
+      fireEvent.keyDown(window, { key: '-' });
+      await waitFor(() => {
+        expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Zoom in twice (100% -> 125% -> 150%) then press '0' to reset to 100%
+      fireEvent.keyDown(window, { key: '+' });
+      fireEvent.keyDown(window, { key: '+' });
+      await waitFor(() => {
+        expect(screen.getByLabelText(/current zoom: 150%/i)).toBeDefined();
+      }, { timeout: 3000 });
+
+      fireEvent.keyDown(window, { key: '0' });
+      await waitFor(() => {
+        expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
+      }, { timeout: 3000 });
     });
   });
 });

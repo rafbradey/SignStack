@@ -23,4 +23,23 @@ describe('Header component', () => {
     expect(screen.getByText('About SignStack')).toBeDefined();
     expect(screen.getByText('100% Client-Side Privacy')).toBeDefined();
   });
+
+  it('opens Keyboard Shortcuts modal when "Shortcuts" button is clicked', () => {
+    render(<Header />);
+    const button = screen.getByRole('button', { name: /shortcuts/i });
+    fireEvent.click(button);
+
+    expect(screen.getByText('Keyboard Shortcuts')).toBeDefined();
+    expect(screen.getByText('Page Navigation')).toBeDefined();
+    expect(screen.getByText('Zoom & Pan')).toBeDefined();
+  });
+
+  it('opens Keyboard Shortcuts modal when "?" key is pressed globally', () => {
+    render(<Header />);
+    fireEvent.keyDown(window, { key: '?' });
+
+    expect(screen.getByText('Keyboard Shortcuts')).toBeDefined();
+    expect(screen.getByText('Overlay Controls')).toBeDefined();
+  });
 });
+
