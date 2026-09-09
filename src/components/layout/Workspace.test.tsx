@@ -1767,6 +1767,49 @@ describe('Workspace component', () => {
         consoleErrorSpy.mockRestore();
       });
     });
+
+    describe('Refined Empty & First-Run States (Phase 11: Task 11.1)', () => {
+      it('renders interactive drop zone and workflow onboarding steps when no documents exist', () => {
+        const onUploadClick = vi.fn();
+        render(<Workspace documents={[]} onUploadClick={onUploadClick} />);
+
+        // Document Tray drop zone
+        expect(
+          screen.getByText(/upload a pdf to get started/i),
+        ).toBeDefined();
+        expect(screen.getByText(/supports pdf up to 50mb/i)).toBeDefined();
+
+        // Editor Workspace onboarding steps
+        expect(screen.getByText('No Document Loaded')).toBeDefined();
+        expect(screen.getByText('Upload PDFs')).toBeDefined();
+        expect(screen.getByText('Stack & Crop')).toBeDefined();
+        expect(screen.getByText('Download Result')).toBeDefined();
+
+        // Clicking drop zone triggers onUploadClick
+        const dropZone = screen.getByLabelText(/upload a pdf to get started/i);
+        fireEvent.click(dropZone);
+        expect(onUploadClick).toHaveBeenCalledTimes(1);
+
+        // Pressing Enter key on drop zone triggers onUploadClick
+        fireEvent.keyDown(dropZone, { key: 'Enter' });
+        expect(onUploadClick).toHaveBeenCalledTimes(2);
+
+        // Clicking upload button in empty editor triggers onUploadClick
+        const uploadBtn = screen.getByRole('button', {
+          name: /upload a document/i,
+        });
+        fireEvent.click(uploadBtn);
+        expect(onUploadClick).toHaveBeenCalledTimes(3);
+
+        // Result Preview empty state
+        expect(screen.getByText('Live Composite Output')).toBeDefined();
+        expect(
+          screen.getByText(
+            'Upload a PDF to view the live composite preview.',
+          ),
+        ).toBeDefined();
+      });
+    });
   });
 });
 

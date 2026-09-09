@@ -869,9 +869,35 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               />
             ))
           ) : (
-            <span className="document-tray-empty-hint">
-              Upload a PDF to get started. Your documents will appear here.
-            </span>
+            <div
+              className="document-tray-empty-zone"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                fileInputRef.current?.click();
+                if (onUploadClick) onUploadClick();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                  if (onUploadClick) onUploadClick();
+                }
+              }}
+              aria-label="Upload a PDF to get started"
+            >
+              <Upload
+                size={14}
+                className="document-tray-empty-icon"
+                aria-hidden="true"
+              />
+              <span className="document-tray-empty-hint">
+                Upload a PDF to get started. Your documents will appear here.
+              </span>
+              <span className="document-tray-empty-subtext">
+                Supports PDF up to 50MB
+              </span>
+            </div>
           )}
         </div>
 
@@ -1047,22 +1073,70 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             onPointerCancel={handleViewportPointerUp}
           >
             {!mainDoc ? (
-              <div className="viewport-empty-card">
-                <div className="viewport-empty-icon" aria-hidden="true">
-                  <FileText size={26} />
+              documents.length === 0 ? (
+                <div className="viewport-empty-card">
+                  <div className="viewport-empty-icon" aria-hidden="true">
+                    <FileText size={26} />
+                  </div>
+                  <h3 className="viewport-empty-title">No Document Loaded</h3>
+                  <p className="viewport-empty-description">
+                    Upload a PDF to view and edit it in the workspace.
+                  </p>
+                  <div
+                    className="viewport-empty-steps"
+                    aria-label="Workflow overview"
+                  >
+                    <div className="empty-step">
+                      <span className="step-num">1</span>
+                      <span className="step-label">Upload PDFs</span>
+                    </div>
+                    <span className="step-arrow" aria-hidden="true">
+                      →
+                    </span>
+                    <div className="empty-step">
+                      <span className="step-num">2</span>
+                      <span className="step-label">Stack &amp; Crop</span>
+                    </div>
+                    <span className="step-arrow" aria-hidden="true">
+                      →
+                    </span>
+                    <div className="empty-step">
+                      <span className="step-num">3</span>
+                      <span className="step-label">Download Result</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Upload size={14} />}
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      if (onUploadClick) onUploadClick();
+                    }}
+                  >
+                    Upload a Document
+                  </Button>
                 </div>
-                <h3 className="viewport-empty-title">No Document Loaded</h3>
-                <p className="viewport-empty-description">
-                  Upload a PDF to view and edit it in the workspace.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload a Document
-                </Button>
-              </div>
+              ) : (
+                <div className="viewport-empty-card">
+                  <div className="viewport-empty-icon" aria-hidden="true">
+                    <Layers size={26} />
+                  </div>
+                  <h3 className="viewport-empty-title">No Document Loaded</h3>
+                  <p className="viewport-empty-description">
+                    You have {documents.length} document
+                    {documents.length === 1 ? '' : 's'} in your queue. Select a
+                    document to begin editing.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSelectMainDoc(documents[0].id)}
+                  >
+                    Set "{documents[0].name}" as Main
+                  </Button>
+                </div>
+              )
             ) : isDocLoading ? (
               <div className="viewport-loading-state">
                 <Spinner size="lg" label={`Loading ${mainDoc.name}...`} />
@@ -1524,7 +1598,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </div>
                 <h3 className="viewport-empty-title">Live Composite Output</h3>
                 <p className="viewport-empty-description">
-                  Upload a PDF to view the live composite preview.
+                  {documents.length === 0
+                    ? 'Upload a PDF to view the live composite preview.'
+                    : 'Select a Main Document to preview composite output.'}
                 </p>
               </div>
             ) : isDocLoading ? (

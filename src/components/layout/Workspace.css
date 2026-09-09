@@ -75,11 +75,50 @@
   border-radius: var(--radius-full);
 }
 
+.document-tray-empty-zone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.document-tray-empty-zone:hover {
+  border-color: var(--primary);
+  background-color: var(--primary-subtle);
+}
+
+.document-tray-empty-zone:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.document-tray-empty-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.document-tray-empty-zone:hover .document-tray-empty-icon {
+  color: var(--primary-text);
+}
+
 .document-tray-empty-hint {
   font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-style: italic;
+  color: var(--text-secondary);
   white-space: nowrap;
+}
+
+.document-tray-empty-subtext {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-default);
 }
 
 /* Responsive View Switcher (Visible on mobile/tablet) */
@@ -344,6 +383,48 @@
   color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: var(--space-4);
+}
+
+.viewport-empty-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  padding: var(--space-2) var(--space-3);
+  background-color: rgba(15, 23, 42, 0.6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.empty-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background-color: var(--primary-subtle);
+  color: var(--primary-text);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.step-arrow {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 /* Pane Controls Footer - Enforce consistent height matching header */
