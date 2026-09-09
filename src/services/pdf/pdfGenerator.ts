@@ -193,8 +193,6 @@ export async function generatePdf({
 
     // 5. Handle Crop Bounding Box if defined
     let embeddedPage;
-    let intrinsicWidth: number;
-    let intrinsicHeight: number;
 
     if (overlay.cropRect) {
       const boundingBox = calculatePdfBoundingBox(
@@ -203,12 +201,8 @@ export async function generatePdf({
         sourceSize.height,
       );
       embeddedPage = await pdfDoc.embedPage(sourcePage, boundingBox);
-      intrinsicWidth = Math.abs(boundingBox.right - boundingBox.left);
-      intrinsicHeight = Math.abs(boundingBox.top - boundingBox.bottom);
     } else {
       embeddedPage = await pdfDoc.embedPage(sourcePage);
-      intrinsicWidth = sourceSize.width;
-      intrinsicHeight = sourceSize.height;
     }
 
     // 6. Calculate placement coordinates in standard PDF points
@@ -216,7 +210,8 @@ export async function generatePdf({
       overlay.position,
       overlay.scale ?? 1,
       baseSize,
-      { width: intrinsicWidth, height: intrinsicHeight },
+      sourceSize,
+      overlay.cropRect,
     );
 
     // 7. Draw the embedded page onto the base page

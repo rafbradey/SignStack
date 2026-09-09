@@ -175,6 +175,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(DEFAULT_ZOOM);
   const [pageDimensions, setPageDimensions] = useState<PageDimensions | null>(null);
+  const [previewPageDimensions, setPreviewPageDimensions] = useState<PageDimensions | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
@@ -204,6 +205,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     setCurrentPage(1);
     setScale(DEFAULT_ZOOM);
     setPageDimensions(null);
+    setPreviewPageDimensions(null);
     setFittedDocId(null);
     setPreviewScaleMode('fit');
     setFitPreviewScale(DEFAULT_ZOOM);
@@ -350,9 +352,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
   const handleOverlayOpacityChange = (newOpacity: number) => {
     if (!activeOverlay) return;
+    const clamped = Math.max(
+      0,
+      Math.min(1.0, Math.round(newOpacity * 100) / 100),
+    );
     setOverlays((prev) =>
       prev.map((o) =>
-        o.id === activeOverlay.id ? { ...o, opacity: newOpacity } : o,
+        o.id === activeOverlay.id ? { ...o, opacity: clamped } : o,
       ),
     );
   };
@@ -1356,11 +1362,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       className="overlay-stepper-btn"
                       aria-label="Decrease opacity"
                       title="Decrease opacity"
-                      disabled={Math.round(activeOverlay.opacity * 100) <= 10}
+                      disabled={Math.round(activeOverlay.opacity * 100) <= 0}
                       onClick={() =>
                         handleOverlayOpacityChange(
                           Math.max(
-                            0.1,
+                            0,
                             Math.round(activeOverlay.opacity * 100 - 5) / 100,
                           ),
                         )
@@ -1370,7 +1376,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                     </Button>
                     <input
                       type="range"
-                      min="10"
+                      min="0"
                       max="100"
                       step="5"
                       value={Math.round(activeOverlay.opacity * 100)}
@@ -1380,9 +1386,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                         handleOverlayOpacityChange(Number(e.target.value) / 100)
                       }
                     />
-                    <span className="overlay-opacity-value">
+                    <button
+                      type="button"
+                      className="overlay-opacity-value"
+                      title="Click to reset opacity to 100%"
+                      aria-label={`Current opacity: ${Math.round(activeOverlay.opacity * 100)}%. Click to reset to 100%`}
+                      onClick={() => handleOverlayOpacityChange(1.0)}
+                    >
                       {Math.round(activeOverlay.opacity * 100)}%
-                    </span>
+                    </button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1706,13 +1718,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                   document={pdfDoc}
                   pageNumber={safeCurrentPage}
                   scale={effectivePreviewScale}
+                  onDimensionsChange={setPreviewPageDimensions}
                   ariaLabel={`Result preview page ${safeCurrentPage}`}
                   className="result-preview-canvas"
                 >
                   {currentPageOverlays.map((overlay) => {
                     const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
-                    const renderPos = pageDimensions
-                      ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
+                    const currentBaseDims =
+                      previewPageDimensions ??
+                      (pageDimensions
+                        ? {
+                            width: (pageDimensions.width / scale) * effectivePreviewScale,
+                            height: (pageDimensions.height / scale) * effectivePreviewScale,
+                          }
+                        : null);
+
+                    const renderPos = currentBaseDims
+                      ? calculateOverlayViewportPosition(overlay.position, currentBaseDims)
                       : { x: 0, y: 0 };
 
                     return (
@@ -1724,7 +1746,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                         opacity={overlay.opacity}
                         position={renderPos}
                         normalizedPosition={overlay.position}
-                        baseDimensions={pageDimensions ?? undefined}
+                        baseDimensions={currentBaseDims ?? undefined}
                         rotation={overlay.rotation}
                         cropRect={overlay.cropRect}
                         isCropping={false}

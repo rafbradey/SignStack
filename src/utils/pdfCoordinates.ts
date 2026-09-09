@@ -182,21 +182,29 @@ export function calculateOverlayPdfBounds(
   overlayScale: number,
   basePdfSize: { width: number; height: number },
   overlayPdfSize: { width: number; height: number },
+  cropRect?: NormalizedRect,
 ): PdfRect {
-  const scaledWidth = overlayPdfSize.width * overlayScale;
-  const scaledHeight = overlayPdfSize.height * overlayScale;
+  const crop = cropRect ?? { x: 0, y: 0, width: 1, height: 1 };
+  const scaledFullWidth = overlayPdfSize.width * overlayScale;
+  const scaledFullHeight = overlayPdfSize.height * overlayScale;
 
-  const pdfX = clamp(normPos.x, 0, 1) * basePdfSize.width;
+  const croppedWidth = crop.width * scaledFullWidth;
+  const croppedHeight = crop.height * scaledFullHeight;
+
+  const cropOffsetX = crop.x * scaledFullWidth;
+  const cropOffsetY = crop.y * scaledFullHeight;
+
+  const pdfX = clamp(normPos.x, 0, 1) * basePdfSize.width + cropOffsetX;
   // Browser Y: 0 is top; PDF Y: 0 is bottom.
-  // PDF bottom-left Y = baseHeight - (topOffset) - overlayHeight
-  const topOffset = clamp(normPos.y, 0, 1) * basePdfSize.height;
-  const pdfY = basePdfSize.height - topOffset - scaledHeight;
+  // PDF bottom-left Y = baseHeight - (topOffset) - croppedHeight
+  const topOffset = clamp(normPos.y, 0, 1) * basePdfSize.height + cropOffsetY;
+  const pdfY = basePdfSize.height - topOffset - croppedHeight;
 
   return {
     x: pdfX,
     y: pdfY,
-    width: scaledWidth,
-    height: scaledHeight,
+    width: croppedWidth,
+    height: croppedHeight,
   };
 }
 

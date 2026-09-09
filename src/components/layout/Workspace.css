@@ -623,12 +623,32 @@
 
 .overlay-opacity-value,
 .overlay-scale-value {
+  background: transparent;
+  border: none;
+  font-family: inherit;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   min-width: 32px;
   text-align: center;
   user-select: none;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+button.overlay-opacity-value {
+  cursor: pointer;
+}
+
+button.overlay-opacity-value:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+button.overlay-opacity-value:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 .overlay-crop-controls {

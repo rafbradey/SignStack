@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, PDFPage, rgb } from 'pdf-lib';
 import {
   calculatePdfBoundingBox,
   getDefaultOutputFilename,
@@ -156,7 +156,7 @@ describe('pdfGenerator', () => {
       expect(parsedDoc.getPageCount()).toBe(2);
     });
 
-    it('embeds a cropped overlay onto a destination page', async () => {
+    it('embeds a cropped overlay onto a destination page with aligned coordinates', async () => {
       const mainBytes = await createTestPdfBytes(1, 600, 800);
       const overlayBytes = await createTestPdfBytes(1, 400, 300);
 
@@ -176,6 +176,8 @@ describe('pdfGenerator', () => {
         cropRect: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
       };
 
+      const drawPageSpy = vi.spyOn(PDFPage.prototype, 'drawPage');
+
       const result = await generatePdf({
         mainDocument: mainDoc,
         overlays: [overlay],
@@ -186,6 +188,19 @@ describe('pdfGenerator', () => {
       expect(result.filename).toBe('Custom_output.pdf');
       const parsedDoc = await PDFDocument.load(result.bytes);
       expect(parsedDoc.getPageCount()).toBe(1);
+
+      // Verify the exact coordinates passed to drawPage match the preview
+      expect(drawPageSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          x: 140, // 0.1 * 600 (normPos) + 0.2 * 400 (cropOffsetX)
+          y: 480, // 800 - (0.1 * 800 + 0.2 * 300) - (0.6 * 300)
+          width: 240, // 0.6 * 400
+          height: 180, // 0.6 * 300
+        }),
+      );
+
+      drawPageSpy.mockRestore();
     });
 
     it('skips overlays that reference missing documents or out-of-range pages gracefully', async () => {

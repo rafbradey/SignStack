@@ -232,6 +232,34 @@ describe('pdfCoordinates utilities', () => {
       // At (0, 0) top-left: pdfY = 792 - 0 - 150 = 642
       expect(result.y).toBe(642);
     });
+
+    it('calculates accurate bounds with cropped overlay region', () => {
+      const normPos = { x: 0.1, y: 0.2 };
+      const overlayScale = 1.0;
+      const basePdfSize = { width: 600, height: 800 };
+      const overlayPdfSize = { width: 400, height: 300 };
+      const cropRect = { x: 0.25, y: 0.3, width: 0.5, height: 0.4 };
+
+      const result = calculateOverlayPdfBounds(
+        normPos,
+        overlayScale,
+        basePdfSize,
+        overlayPdfSize,
+        cropRect,
+      );
+
+      // cropOffsetX = 0.25 * 400 = 100
+      // pdfX = 0.1 * 600 + 100 = 160
+      expect(result.x).toBeCloseTo(160);
+      // cropOffsetY = 0.3 * 300 = 90
+      // topOffset = 0.2 * 800 + 90 = 160 + 90 = 250
+      // croppedHeight = 0.4 * 300 = 120
+      // pdfY = 800 - 250 - 120 = 430
+      expect(result.y).toBeCloseTo(430);
+      // croppedWidth = 0.5 * 400 = 200
+      expect(result.width).toBeCloseTo(200);
+      expect(result.height).toBeCloseTo(120);
+    });
   });
 
   describe('calculateUpdatedOverlayPosition', () => {

@@ -612,6 +612,23 @@ describe('Workspace component', () => {
         name: 'Overlay page 1',
       });
       expect(overlayRegion.style.opacity).toBe('0.5');
+
+      // Test 0% opacity via slider
+      fireEvent.change(slider, { target: { value: '0' } });
+      expect(slider.value).toBe('0');
+      expect(overlayRegion.style.opacity).toBe('0');
+
+      // Decrease button should now be disabled at 0%
+      const decBtn = screen.getByLabelText('Decrease opacity');
+      expect(decBtn.hasAttribute('disabled')).toBe(true);
+
+      // Clicking displayed percentage resets to 100%
+      const resetBtn = screen.getByRole('button', {
+        name: /current opacity: 0%\. click to reset to 100%/i,
+      });
+      fireEvent.click(resetBtn);
+      expect(slider.value).toBe('100');
+      expect(overlayRegion.style.opacity).toBe('1');
     });
 
     describe('Page-Specific Overlay Association', () => {
