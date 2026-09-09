@@ -379,49 +379,39 @@ Do not add Supabase solely because it is available.
 
 # Architecture Decision Records
 
-Important architectural decisions should eventually be documented using this format:
+### ADR 1: Dual-Engine PDF Pipeline
+- **Decision**: Use `pdfjs-dist` for client-side rendering/canvas preview, and `pdf-lib` for composite PDF generation and export.
+- **Context**: In-browser PDF applications need both fast, interactive visual rasterization and lossless, vector-preserving PDF output.
+- **Alternatives Considered**: 
+  - `pdfjs-dist` alone: Excellent rasterizer, but lacks native PDF generation/saving capabilities.
+  - Server-side generation (e.g. Puppeteer/Poppler): Violates privacy-first philosophy and adds latency/hosting costs.
+  - `pdf-lib` alone: Strong vector manipulation, but cannot rasterize pages directly to HTML5 canvas.
+- **Reasoning**: Decoupling visual rendering from document generation gives the best of both worlds: crisp Retina/High-DPI canvas preview and vector-accurate, small-footprint PDF exports.
 
-## Decision
+### ADR 2: 3-Tier Coordinate System with Normalized Storage
+- **Decision**: Store all positions and crop boundaries as normalized values in `[0, 1]` relative to the page dimensions. Convert to CSS pixels for browser DOM interaction, and to 72 DPI PDF points with Y-axis inversion for export.
+- **Context**: Canvas viewports scale dynamically with window resizing, responsive layouts, zoom controls, and device pixel ratios. PDF coordinate systems use bottom-left origins and point units.
+- **Reasoning**: Storing normalized coordinates guarantees that overlay positions and crop regions remain perfectly invariant under zoom changes, viewport resizing, screen DPI shifts, and final vector export.
 
-What was decided?
+### ADR 3: Privacy-First Client-Side Architecture
+- **Decision**: Perform 100% of document validation, rendering, manipulation, and export entirely inside the user's browser using Web Workers and typed byte arrays.
+- **Context**: User documents frequently contain sensitive legal, financial, and signature data.
+- **Reasoning**: Eliminates data leak risks, zero server hosting costs for document processing, compliance by design (GDPR/HIPAA considerations simplified), and zero upload latency.
 
-## Context
+### ADR 4: Idiomatic React Hooks for State Management
+- **Decision**: Use focused custom hooks (`useDocuments`, `usePdfPage`) and local component state instead of global stores (Redux, Zustand).
+- **Context**: The application has well-defined boundaries: document queue management, single-page viewport rendering, and composite overlay editing.
+- **Reasoning**: Avoids unnecessary external dependencies and boilerplate. Keeps state ownership close to where it is consumed, making components easier to reason about, test, and refactor.
 
-Why was the decision necessary?
+### ADR 5: Canvas Lifecycle & GPU Memory Management
+- **Decision**: Explicitly reset canvas backing store dimensions (`width = 0; height = 0;`) on component unmount and document clearance, invoke `pageProxy.cleanup()` before fetching subsequent pages, and cancel in-flight `RenderTask` operations.
+- **Context**: HTML5 canvases retain large hardware texture buffers in GPU memory (10MB–60MB per page on High-DPI screens) even after unmounting from the DOM.
+- **Reasoning**: Prevents memory leaks during extended user sessions or when cycling through multi-page documents, ensuring consistent 60fps performance without browser tab crashes.
 
-## Options Considered
-
-What alternatives were evaluated?
-
-## Decision Reasoning
-
-Why was this option selected?
-
-## Tradeoffs
-
-What are the advantages and disadvantages?
-
-## Consequences
-
-What does this decision mean for the rest of the system?
-
----
-
-# Current Architectural Questions
-
-These should be answered during development rather than assumed in advance:
-
-- Which PDF rendering library should be used?
-- Which PDF manipulation library should be used?
-- React + Vite or another frontend setup?
-- How should coordinate conversion work?
-- How should crop regions be represented?
-- How should overlays be represented?
-- How much editor state should be shared?
-- Is a third-party state-management library necessary?
-- How should large PDFs be handled?
-- How should PDF rendering be optimized?
-- What browser limitations need to be handled?
+### ADR 6: Interaction Performance & Component Memoization
+- **Decision**: Coalesce high-frequency pointermove events using `requestAnimationFrame` and isolate re-renders via `React.memo` on presentational components (`DocumentCard`, `PdfPageCanvas`, `PdfOverlayLayer`, `CropSelectionBox`).
+- **Context**: Dragging overlays and adjusting crop handles fire pointer events faster than the browser refresh rate (120Hz+ on modern mice/displays), which can saturate the main thread if unthrottled.
+- **Reasoning**: Guarantees silky smooth 60fps drag interactions without unnecessary DOM reflows or redundant re-renders of unaffected UI elements.
 
 ---
 

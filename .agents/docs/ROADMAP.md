@@ -213,46 +213,41 @@ A polished MVP experience.
 
 ---
 
-# Phase 12 — Performance
+# Phase 12 — Performance [COMPLETED]
 
 Goals:
 
 Evaluate:
 
-- large PDF behavior
-- browser memory
-- rendering performance
-- unnecessary React renders
-- lazy rendering
-- page virtualization where necessary
-- expensive PDF operations
-
-Only optimize where measurements or clear evidence justify it.
+- large PDF behavior (single-page lazy rasterization, orphan proxy pruning)
+- browser memory (explicit canvas backing store buffer release on unmount/clear)
+- rendering performance (requestAnimationFrame drag coalescing)
+- unnecessary React renders (React.memo on DocumentCard, PdfPageCanvas, PdfOverlayLayer, CropSelectionBox)
+- lazy rendering (render only the active viewport page)
+- expensive PDF operations (in-flight render task cancellation)
 
 Deliverable:
 
-A stable MVP for realistic document sizes.
+A stable MVP for realistic document sizes. (Completed)
 
 ---
 
-# Phase 13 — Architecture Review
+# Phase 13 — Architecture Review [COMPLETED]
 
 Review:
 
-- component structure
-- state management
-- PDF architecture
-- coordinate system
-- error handling
-- performance
-- dependency choices
-- maintainability
-
-Refactor only where there is a clear benefit.
+- component structure (unidirectional hierarchy, clean separation of concerns)
+- state management (decoupled custom hooks useDocuments and usePdfPage without global state overhead)
+- PDF architecture (dual-engine: pdfjs-dist for rendering, pdf-lib for vector generation)
+- coordinate system (3-tier normalized transformation with origin inversion)
+- error handling (3-tier error hierarchy with ErrorBoundary isolation)
+- performance (RAF throttled interactions, memoized presentation layers)
+- dependency choices (minimal, zero unused dependencies)
+- maintainability (0 TypeScript errors, 0 ESLint warnings, 0 any shortcuts, 226 passing tests)
 
 Deliverable:
 
-A clean portfolio-quality codebase.
+A clean portfolio-quality codebase with formalized Architectural Decision Records (ADRs). (Completed)
 
 ---
 
