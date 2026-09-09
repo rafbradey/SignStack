@@ -137,40 +137,81 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [activeOverlayId, setActiveOverlayId] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
 
-  const handleSelectMainDoc = (id: string) => {
-    setInternalMainDocId(id);
-    onSelectMainDocument?.(id);
-  };
+  const handleSelectMainDoc = useCallback(
+    (id: string) => {
+      setInternalMainDocId(id);
+      onSelectMainDocument?.(id);
+    },
+    [onSelectMainDocument],
+  );
+
+  const handleRemoveDoc = useCallback(
+    (id: string) => {
+      onRemoveDocument?.(id);
+    },
+    [onRemoveDocument],
+  );
+
+  const handleMoveDocUp = useCallback(
+    (id: string) => {
+      onMoveDocument?.(id, 'up');
+    },
+    [onMoveDocument],
+  );
+
+  const handleMoveDocDown = useCallback(
+    (id: string) => {
+      onMoveDocument?.(id, 'down');
+    },
+    [onMoveDocument],
+  );
 
   // Drag-and-drop state for queue reordering
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const handleCardDragStart = (index: number) => {
-    setDraggedIndex(index);
-  };
+  const handleCardDragStart = useCallback(
+    (_e: React.DragEvent<HTMLElement>, index?: number) => {
+      if (index !== undefined) {
+        setDraggedIndex(index);
+      }
+    },
+    [],
+  );
 
-  const handleCardDragOver = (e: React.DragEvent<HTMLElement>, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
+  const handleCardDragOver = useCallback(
+    (e: React.DragEvent<HTMLElement>, index?: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (index !== undefined) {
+        setDragOverIndex((prev) => (prev !== index ? index : prev));
+      }
+    },
+    [],
+  );
 
-  const handleCardDragEnd = () => {
+  const handleCardDragEnd = useCallback(() => {
     setDraggedIndex(null);
     setDragOverIndex(null);
-  };
+  }, []);
 
-  const handleCardDrop = (e: React.DragEvent<HTMLElement>, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== targetIndex) {
-      onReorderDocuments?.(draggedIndex, targetIndex);
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
+  const handleCardDrop = useCallback(
+    (e: React.DragEvent<HTMLElement>, targetIndex?: number) => {
+      e.preventDefault();
+      if (targetIndex !== undefined) {
+        setDraggedIndex((prevDragged) => {
+          if (prevDragged !== null && prevDragged !== targetIndex) {
+            onReorderDocuments?.(prevDragged, targetIndex);
+          }
+          return null;
+        });
+      } else {
+        setDraggedIndex(null);
+      }
+      setDragOverIndex(null);
+    },
+    [onReorderDocuments],
+  );
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(DEFAULT_ZOOM);
@@ -926,15 +967,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                   totalDocuments={documents.length}
                   isMain={doc.id === mainDoc?.id}
                   onSetMain={handleSelectMainDoc}
-                  onRemove={onRemoveDocument ?? (() => {})}
-                  onMoveUp={(id) => onMoveDocument?.(id, 'up')}
-                  onMoveDown={(id) => onMoveDocument?.(id, 'down')}
+                  onRemove={handleRemoveDoc}
+                  onMoveUp={handleMoveDocUp}
+                  onMoveDown={handleMoveDocDown}
                   isDragging={draggedIndex === index}
                   isDragOver={dragOverIndex === index && draggedIndex !== index}
-                  onDragStart={() => handleCardDragStart(index)}
-                  onDragOver={(e) => handleCardDragOver(e, index)}
+                  onDragStart={handleCardDragStart}
+                  onDragOver={handleCardDragOver}
                   onDragEnd={handleCardDragEnd}
-                  onDrop={(e) => handleCardDrop(e, index)}
+                  onDrop={handleCardDrop}
                 />
               ))}
 

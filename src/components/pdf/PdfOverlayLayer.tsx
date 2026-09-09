@@ -58,7 +58,7 @@ interface DragState {
  * Supports interactive dragging and positioning across the base page,
  * optional rectangular crop regions, and interactive crop framing.
  */
-export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
+export const PdfOverlayLayer = React.memo<PdfOverlayLayerProps>(function PdfOverlayLayer({
   document,
   pageNumber,
   scale = 1.0,
@@ -76,7 +76,7 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
   onDelete,
   ariaLabel,
   className = '',
-}) => {
+}) {
   const { canvasRef, dimensions } = usePdfPage({
     document,
     pageNumber,
@@ -285,4 +285,6 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
       )}
     </div>
   );
-};
+});
+
+PdfOverlayLayer.displayName = 'PdfOverlayLayer';

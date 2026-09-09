@@ -33,7 +33,7 @@ export interface PdfPageCanvasProps {
  * - Loading indicator during rasterization
  * - Graceful error display if page rendering fails
  */
-export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
+export const PdfPageCanvas = React.memo<PdfPageCanvasProps>(function PdfPageCanvas({
   document,
   pageNumber,
   scale = 1.0,
@@ -42,7 +42,7 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   className = '',
   onDimensionsChange,
   children,
-}) => {
+}) {
   const { canvasRef, isLoading, error, dimensions } = usePdfPage({
     document,
     pageNumber,
@@ -94,4 +94,6 @@ export const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       )}
     </div>
   );
-};
+});
+
+PdfPageCanvas.displayName = 'PdfPageCanvas';

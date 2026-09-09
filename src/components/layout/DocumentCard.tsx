@@ -32,10 +32,10 @@ export interface DocumentCardProps {
   /** Whether another dragged card is currently hovered over this card */
   isDragOver?: boolean;
   /** Drag-and-drop event handlers */
-  onDragStart?: (e: React.DragEvent<HTMLElement>) => void;
-  onDragOver?: (e: React.DragEvent<HTMLElement>) => void;
+  onDragStart?: (e: React.DragEvent<HTMLElement>, index?: number) => void;
+  onDragOver?: (e: React.DragEvent<HTMLElement>, index?: number) => void;
   onDragEnd?: (e: React.DragEvent<HTMLElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLElement>, index?: number) => void;
 }
 
 /**
@@ -50,7 +50,7 @@ export interface DocumentCardProps {
  *   - Provide accessible fallback reorder controls (move up / down)
  *   - Provide accessible remove button
  */
-export const DocumentCard: React.FC<DocumentCardProps> = ({
+export const DocumentCard = React.memo<DocumentCardProps>(function DocumentCard({
   document,
   position,
   totalDocuments,
@@ -65,7 +65,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   onDragOver,
   onDragEnd,
   onDrop,
-}) => {
+}) {
   const isFirst = position === 1;
   const isLast = position === totalDocuments;
 
@@ -111,11 +111,15 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           e.preventDefault();
           return;
         }
-        onDragStart?.(e);
+        onDragStart?.(e, position - 1);
       }}
-      onDragOver={onDragOver}
+      onDragOver={(e) => {
+        onDragOver?.(e, position - 1);
+      }}
       onDragEnd={onDragEnd}
-      onDrop={onDrop}
+      onDrop={(e) => {
+        onDrop?.(e, position - 1);
+      }}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -234,4 +238,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
       </div>
     </article>
   );
-};
+});
+
+DocumentCard.displayName = 'DocumentCard';

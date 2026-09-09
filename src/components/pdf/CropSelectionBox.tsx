@@ -43,12 +43,12 @@ interface MoveDragState {
  * - Semi-transparent scrim mask indicating portions outside the crop
  * - Dimension percentage badge
  */
-export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
+export const CropSelectionBox = React.memo<CropSelectionBoxProps>(function CropSelectionBox({
   cropRect,
   onChange,
   isEditing = true,
   className = '',
-}) => {
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeDragStateRef = useRef<ResizeDragState | null>(null);
   const moveDragStateRef = useRef<MoveDragState | null>(null);
@@ -421,4 +421,6 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
       </div>
     </div>
   );
-};
+});
+
+CropSelectionBox.displayName = 'CropSelectionBox';
