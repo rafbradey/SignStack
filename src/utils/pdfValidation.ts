@@ -31,13 +31,45 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
+ * Resolves a unique filename by appending an incrementing suffix if the filename already exists.
+ * e.g., "document.pdf" -> "document (1).pdf" -> "document (2).pdf"
+ */
+export function resolveUniqueFilename(
+  name: string,
+  existingNames: Set<string> | string[],
+): string {
+  const namesSet =
+    existingNames instanceof Set ? existingNames : new Set(existingNames);
+  if (!namesSet.has(name)) {
+    return name;
+  }
+
+  const dotIndex = name.lastIndexOf('.');
+  const baseName = dotIndex !== -1 ? name.slice(0, dotIndex) : name;
+  const ext = dotIndex !== -1 ? name.slice(dotIndex) : '';
+
+  let counter = 1;
+  let candidate = `${baseName} (${counter})${ext}`;
+
+  while (namesSet.has(candidate)) {
+    counter++;
+    candidate = `${baseName} (${counter})${ext}`;
+  }
+
+  return candidate;
+}
+
+/**
  * Creates an `UploadedDocument` domain object from a validated browser `File`.
  */
-export function createUploadedDocument(file: File): UploadedDocument {
+export function createUploadedDocument(
+  file: File,
+  customName?: string,
+): UploadedDocument {
   return {
     id: crypto.randomUUID(),
     file,
-    name: file.name,
+    name: customName || file.name,
     size: file.size,
     formattedSize: formatFileSize(file.size),
     type: file.type || 'application/pdf',

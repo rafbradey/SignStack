@@ -3,6 +3,7 @@ import {
   validatePdfFile,
   formatFileSize,
   createUploadedDocument,
+  resolveUniqueFilename,
 } from './pdfValidation';
 
 describe('formatFileSize', () => {
@@ -16,6 +17,50 @@ describe('formatFileSize', () => {
     expect(formatFileSize(1536)).toBe('1.5 KB');
     expect(formatFileSize(1048576)).toBe('1.0 MB');
     expect(formatFileSize(1048576 * 2.5)).toBe('2.5 MB');
+  });
+});
+
+describe('resolveUniqueFilename', () => {
+  it('returns original filename if no collision exists', () => {
+    const existing = new Set(['invoice.pdf', 'report.pdf']);
+    expect(resolveUniqueFilename('contract.pdf', existing)).toBe(
+      'contract.pdf',
+    );
+  });
+
+  it('appends (1) for a single collision', () => {
+    const existing = new Set(['contract.pdf']);
+    expect(resolveUniqueFilename('contract.pdf', existing)).toBe(
+      'contract (1).pdf',
+    );
+  });
+
+  it('increments counter sequentially when multiple collisions exist', () => {
+    const existing = new Set([
+      'contract.pdf',
+      'contract (1).pdf',
+      'contract (2).pdf',
+    ]);
+    expect(resolveUniqueFilename('contract.pdf', existing)).toBe(
+      'contract (3).pdf',
+    );
+  });
+
+  it('works when passed an array instead of a Set', () => {
+    const existing = ['doc.pdf'];
+    expect(resolveUniqueFilename('doc.pdf', existing)).toBe('doc (1).pdf');
+  });
+
+  it('preserves file extension with multiple dots', () => {
+    const existing = new Set(['archive.backup.pdf']);
+    expect(resolveUniqueFilename('archive.backup.pdf', existing)).toBe(
+      'archive.backup (1).pdf',
+    );
+  });
+
+  it('handles filenames without extensions', () => {
+    const existing = new Set(['README']);
+    expect(resolveUniqueFilename('README', existing)).toBe('README (1)');
   });
 });
 
@@ -34,6 +79,16 @@ describe('createUploadedDocument', () => {
     expect(doc.type).toBe('application/pdf');
     expect(doc.file).toBe(file);
     expect(doc.uploadedAt).toBeGreaterThan(0);
+  });
+
+  it('uses customName when provided', () => {
+    const file = new File(['%PDF-1.7 dummy content'], 'original.pdf', {
+      type: 'application/pdf',
+    });
+    const doc = createUploadedDocument(file, 'original (1).pdf');
+
+    expect(doc.name).toBe('original (1).pdf');
+    expect(doc.file.name).toBe('original.pdf');
   });
 });
 

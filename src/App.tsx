@@ -11,7 +11,7 @@ export default function App() {
     removeDocument,
     moveDocument,
     reorderDocuments,
-    clearErrors,
+    dismissError,
   } = useDocuments();
 
   return (
@@ -42,7 +42,7 @@ export default function App() {
               key={`${err.fileName}-${idx}`}
               variant="danger"
               title={`Validation Error: ${err.fileName}`}
-              onDismiss={clearErrors}
+              onDismiss={() => dismissError(idx)}
             >
               {err.message}
             </Alert>

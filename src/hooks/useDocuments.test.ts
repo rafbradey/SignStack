@@ -95,17 +95,56 @@ describe('useDocuments', () => {
 
     const validPdf = createMockPdf('contract.pdf');
     const invalidFile = createMockNonPdf('image.png');
+    const emptyFile = new File([], 'empty.pdf', { type: 'application/pdf' });
+    const corruptedFile = new File(['NOTAPDF'], 'corrupted.pdf', {
+      type: 'application/pdf',
+    });
 
     await act(async () => {
-      const res = await result.current.addFiles([validPdf, invalidFile]);
+      const res = await result.current.addFiles([
+        validPdf,
+        invalidFile,
+        emptyFile,
+        corruptedFile,
+      ]);
       expect(res.added).toHaveLength(1);
-      expect(res.errors).toHaveLength(1);
+      expect(res.errors).toHaveLength(3);
     });
 
     expect(result.current.documents).toHaveLength(1);
     expect(result.current.documents[0].name).toBe('contract.pdf');
-    expect(result.current.validationErrors).toHaveLength(1);
-    expect(result.current.validationErrors[0].fileName).toBe('image.png');
+    expect(result.current.validationErrors).toHaveLength(3);
+    expect(result.current.validationErrors.map((e) => e.fileName)).toEqual([
+      'image.png',
+      'empty.pdf',
+      'corrupted.pdf',
+    ]);
+  });
+
+  it('disambiguates duplicate filenames within the same batch and across multiple batches', async () => {
+    const { result } = renderHook(() => useDocuments());
+
+    // Batch 1: Two files with the same name
+    const file1 = createMockPdf('document.pdf');
+    const file2 = createMockPdf('document.pdf');
+
+    await act(async () => {
+      await result.current.addFiles([file1, file2]);
+    });
+
+    expect(result.current.documents).toHaveLength(2);
+    expect(result.current.documents[0].name).toBe('document.pdf');
+    expect(result.current.documents[1].name).toBe('document (1).pdf');
+
+    // Batch 2: Another file with the same name
+    const file3 = createMockPdf('document.pdf');
+
+    await act(async () => {
+      await result.current.addFiles([file3]);
+    });
+
+    expect(result.current.documents).toHaveLength(3);
+    expect(result.current.documents[2].name).toBe('document (2).pdf');
   });
 
   it('removes a document by id', async () => {

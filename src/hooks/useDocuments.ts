@@ -4,7 +4,11 @@ import {
   ValidationError,
   PdfValidationOptions,
 } from '@/types';
-import { validatePdfFile, createUploadedDocument } from '@/utils';
+import {
+  validatePdfFile,
+  createUploadedDocument,
+  resolveUniqueFilename,
+} from '@/utils';
 
 /**
  * Immutably moves an item within an array from startIndex to endIndex.
@@ -99,12 +103,18 @@ export function useDocuments(): UseDocumentsReturn {
           })),
         );
 
+        const existingNames = new Set(documents.map((d) => d.name));
         const newValidDocs: UploadedDocument[] = [];
         const newErrors: ValidationError[] = [];
 
         for (const item of validationResults) {
           if (item.result.valid) {
-            newValidDocs.push(createUploadedDocument(item.file));
+            const uniqueName = resolveUniqueFilename(
+              item.file.name,
+              existingNames,
+            );
+            existingNames.add(uniqueName);
+            newValidDocs.push(createUploadedDocument(item.file, uniqueName));
           } else {
             newErrors.push(item.result.error);
           }
@@ -123,7 +133,7 @@ export function useDocuments(): UseDocumentsReturn {
         setIsProcessing(false);
       }
     },
-    [],
+    [documents],
   );
 
   const removeDocument = useCallback((id: string) => {
