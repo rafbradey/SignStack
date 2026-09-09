@@ -66,16 +66,19 @@ export const Header: React.FC<HeaderProps> = ({ rightActions }) => {
             onClick={() => setIsShortcutsOpen(true)}
             leftIcon={<Keyboard size={15} />}
             title="Keyboard Shortcuts (?)"
+            aria-label="Shortcuts"
           >
-            Shortcuts
+            <span className="header-btn-text">Shortcuts</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsAboutOpen(true)}
             leftIcon={<HelpCircle size={15} />}
+            title="How SignStack works"
+            aria-label="How it works"
           >
-            How it works
+            <span className="header-btn-text">How it works</span>
           </Button>
           {rightActions}
         </nav>

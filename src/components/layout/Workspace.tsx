@@ -1056,22 +1056,34 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <button
           type="button"
           role="tab"
+          id="tab-editor"
+          aria-controls="editor-pane"
           aria-selected={activeTab === 'editor'}
           className={`workspace-tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
           onClick={() => setActiveTab('editor')}
         >
-          <Layers size={14} />
-          Editor Workspace
+          <Layers size={16} aria-hidden="true" />
+          <span>Editor Workspace</span>
+          {overlays.length > 0 && (
+            <span className="mobile-tab-badge" aria-label={`${overlays.length} overlays`}>
+              {overlays.length}
+            </span>
+          )}
         </button>
         <button
           type="button"
           role="tab"
+          id="tab-result"
+          aria-controls="result-pane"
           aria-selected={activeTab === 'result'}
           className={`workspace-tab-btn ${activeTab === 'result' ? 'active' : ''}`}
           onClick={() => setActiveTab('result')}
         >
-          <Eye size={14} />
-          Result Preview
+          <Eye size={16} aria-hidden="true" />
+          <span>Result Preview</span>
+          {mainDoc && (
+            <span className="mobile-tab-dot" aria-label="Result ready" />
+          )}
         </button>
       </div>
 
@@ -1087,6 +1099,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       >
         {/* Left Pane: Editor */}
         <section
+          id="editor-pane"
+          role="region"
           className={`workspace-pane editor-pane ${activeTab !== 'editor' ? 'hidden-on-mobile' : ''}`.trim()}
           aria-label="Editor Workspace"
           tabIndex={0}
@@ -1166,11 +1180,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 Fit
               </Button>
 
-              <div className="toolbar-divider" />
+              <div className="toolbar-divider desktop-only-action" />
 
               <Button
                 variant={workspaceLayout === 'editor-maximized' ? 'secondary' : 'ghost'}
                 size="sm"
+                className="desktop-only-action"
                 aria-label={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor' : 'Maximize editor'}
                 title={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor (Esc)' : 'Maximize editor (full workspace)'}
                 disabled={!mainDoc}
@@ -1566,6 +1581,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
         {/* Right Pane: Result Preview */}
         <section
+          id="result-pane"
+          role="region"
           className={`workspace-pane result-pane ${activeTab !== 'result' ? 'hidden-on-mobile' : ''}`.trim()}
           aria-label="Result Preview"
         >
@@ -1654,12 +1671,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 Sync
               </Button>
 
-              <div className="toolbar-divider" />
+              <div className="toolbar-divider desktop-only-action" />
 
               {/* Maximize / Restore Layout Toggle */}
               <Button
                 variant={workspaceLayout === 'preview-maximized' ? 'secondary' : 'ghost'}
                 size="sm"
+                className="desktop-only-action"
                 aria-label={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview' : 'Maximize preview'}
                 title={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview (Esc)' : 'Maximize preview (full workspace)'}
                 disabled={!mainDoc}

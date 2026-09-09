@@ -16,14 +16,7 @@ export default function App() {
   } = useDocuments();
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="app-container">
       {/* Top Application Header */}
       <Header />
 

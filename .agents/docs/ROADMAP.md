@@ -301,6 +301,100 @@ Production deployment configuration and deployment guide completed. (Completed)
 
 ---
 
+# Phase 17 — Mobile Support & Touch UX
+
+## Phase Objective
+
+Enable a full, touch-friendly, high-performance SignStack experience across smartphones, tablets, and small laptops without compromising the desktop split-pane workflow, introducing a separate codebase, or compromising client-side privacy.
+
+## Mobile UX Goals
+
+- **Zero Desktop Regression**: Desktop (`>= 1024px`) retains the high-productivity `Editor Workspace | Result Preview` side-by-side split view.
+- **Workflow Completeness**: All 11 core steps of the SignStack workflow (Upload, Queue management, Main Document selection, Overlay selection, Viewing, Cropping, Positioning/Resizing, Opacity, Scale, Result preview, and PDF generation/download) must be easily performable on a handheld mobile device.
+- **Ergonomics & Thumb Reach**: Touch controls should be reachable, with primary actions anchored within thumb reach on mobile viewports.
+- **No Pinch-Zoom Interference**: Canvas touch interactions (crop dragging, overlay positioning) must not accidentally trigger browser viewport zoom or unwanted document scrolling.
+
+## Responsive Layout Strategy
+
+- **Adaptive Split vs. Tabbed View**:
+  - `Desktop (>= 1024px)`: Side-by-side split pane (`Editor | Result`).
+  - `Tablet & Mobile (< 1024px)`: Tabbed navigation (`Editor Workspace` and `Result Preview` tabs). Tab switcher pinned with high-contrast active state indicators and live badges showing overlay status or generation readiness.
+  - `Small Mobile (< 640px)`: Full-width stacked layout with dynamic viewport height (`100dvh`) accounting for mobile browser address bars and home indicator notches (`env(safe-area-inset-bottom)`).
+- **Controls Presentation**:
+  - Replace dense single-row desktop toolbars with collapsible drawers or bottom-anchored sheets on small screens so the canvas remains visible while tweaking overlay settings.
+
+## Touch Interaction Requirements
+
+- **Minimum Touch Targets**: All interactive elements (buttons, selectors, stepper arrows, delete icons, tabs) must have a minimum touch hitbox of 44x44px per WCAG 2.5.5.
+- **Touch-Action Scoping**: Explicit `touch-action: none` applied during active dragging of overlays and crop handles, preventing browser pan/pull-to-refresh conflicts.
+- **Precision Crop Handles**: Expand visual 12px crop corner handles with invisible 44px pseudo-element touch targets (`::after`), ensuring effortless mobile selection without visual clutter.
+- **Pointer Capture Resilience**: Use standard `PointerEvent` APIs (`setPointerCapture` / `releasePointerCapture`) for seamless tracking even if fingers move past the canvas boundary.
+
+## PDF Viewer Requirements
+
+- **Mobile Viewport Fit**: Automatic initial fit (`calculateFitScale`) tailored for portrait or landscape orientation changes on mobile devices.
+- **Floating Zoom & Pan Controls**: Floating zoom pill (Fit Page, Zoom In, Zoom Out) accessible above the bottom tab bar.
+- **Smooth Canvas Panning**: Two-finger or single-finger pan inside scrollable canvas container with inertia and smooth scroll snapping.
+
+## Document Queue Behavior
+
+- **Mobile Horizontal Queue**: Queue items sized responsively (e.g. `min-width: 240px` on phones, `280px` on desktop) with snap-scrolling to prevent awkward half-card cutoff.
+- **Touch-Friendly Card Actions**:
+  - Always-visible reorder buttons (Move Left / Move Right) on touch screens instead of relying on hover-only CSS states.
+  - Generous tap target for "Set as Main" and "Remove Document".
+- **Mobile File Picker**: Upload zone optimized for mobile document selection (Files app on iOS/Android, photo library prevention via appropriate MIME types).
+
+## Editor & Result Preview Behavior
+
+- **State Synchronization**: Switching tabs between Editor and Result Preview never resets zoom, page index, crop rect, or overlay position.
+- **One-Tap Generation & Preview**: Preview tab features prominent "Generate & Download PDF" floating action bar with loading indicators.
+- **Mobile PDF Download**: Direct blob download using standard mobile download triggers (`downloadPdfBlob` with object URL fallback for mobile Safari/Chrome).
+
+## Accessibility Considerations
+
+- Minimum touch target sizing (44x44px target size compliance).
+- Dynamic focus management when switching between Editor and Preview tabs.
+- Screen reader announcements when switching mobile view modes.
+- Visual focus outlines remain crisp on mobile keyboard/switch-control inputs.
+
+## Performance Considerations
+
+- **Memory Efficiency**: Mobile browser tab memory limits (e.g. iOS WebKit 1.5GB cap) require immediate disposal of unused canvas backing stores.
+- **RAF Throttling**: Keep all touch dragging operations coalesced via `requestAnimationFrame` to maintain a steady 60fps on mobile displays.
+- **Prevent Canvas Re-renders**: Maintain `React.memo` boundaries so typing or slider adjustments on mobile controls do not re-render the underlying PDF canvas.
+
+## Tasks Breakdown
+
+- **Task 17.1 — Responsive Workspace Architecture & Mobile Tabbed Viewport**:
+  - Dynamic viewport sizing (`100dvh`, safe-area insets).
+  - Refined mobile tab bar (`Editor` vs. `Result Preview`) with active indicators.
+  - Responsive header collapse and navigation.
+- **Task 17.2 — Touch-Optimized Document Queue & Card Controls**:
+  - Mobile card layout with responsive widths and touch-scroll snap.
+  - Touch-accessible Move Left/Right and Set Main buttons (no hover dependency).
+  - Mobile file upload trigger integration.
+- **Task 17.3 — Mobile Toolbar & Responsive Controls Sheet**:
+  - Reorganize dense desktop overlay controls into a collapsible or bottom-anchored control panel for small screens.
+  - Ensure all inputs, sliders, and stepper buttons meet 44x44px touch targets.
+- **Task 17.4 — Touch Gestures & Precision Overlay / Crop Interaction**:
+  - Expand `CropSelectionBox` corner handle touch hitboxes (`::after` 44x44px hit areas).
+  - Scoped `touch-action` and pointer-event handling to eliminate canvas gesture conflicts.
+  - Floating mobile zoom/fit controls.
+- **Task 17.5 — Cross-Device Verification, Automated Mobile Tests & Polish**:
+  - Vitest test suite for mobile viewport transitions and touch interactions.
+  - Mobile end-to-end workflow verification across phone and tablet viewports.
+  - Visual polish, clean CSS media query organization, and zero desktop regressions.
+
+## Definition of Done
+
+- SignStack is fully functional on smartphone viewports (360px - 480px), tablets (768px - 1024px), and desktop (>= 1024px).
+- Complete workflow (upload, queue, main doc, overlay doc, crop, move, opacity, scale, preview, download) can be completed purely via touch.
+- Touch target sizes meet or exceed 44x44px for primary actions.
+- Zero regressions in desktop split-view functionality.
+- All automated tests, TypeScript checks, and linting pass with 0 errors.
+
+---
+
 # Development Rule
 
 Never skip ahead simply because a future feature is interesting.

@@ -1926,7 +1926,79 @@ describe('Workspace component', () => {
         expect(screen.getByLabelText(/current zoom: 100%/i)).toBeDefined();
       }, { timeout: 3000 });
     });
+
+    describe('Mobile Tabbed Viewport (Phase 17: Task 17.1)', () => {
+      it('renders accessible mobile tab bar with role tablist and tab panels', async () => {
+        const doc = makeDoc({ id: 'doc-mobile', name: 'mobile.pdf' });
+        render(<Workspace documents={[doc]} />);
+
+        const tabList = screen.getByRole('tablist', { name: /workspace view/i });
+        expect(tabList).toBeDefined();
+
+        const editorTab = screen.getByRole('tab', { name: /editor workspace/i });
+        const resultTab = screen.getByRole('tab', { name: /result preview/i });
+
+        expect(editorTab).toBeDefined();
+        expect(resultTab).toBeDefined();
+        expect(editorTab.getAttribute('aria-selected')).toBe('true');
+        expect(resultTab.getAttribute('aria-selected')).toBe('false');
+
+        const editorPanel = screen.getByRole('region', { name: /editor workspace/i });
+        const resultPanel = screen.getByRole('region', { name: /result preview/i });
+
+        expect(editorPanel.id).toBe('editor-pane');
+        expect(resultPanel.id).toBe('result-pane');
+        expect(editorPanel.classList.contains('hidden-on-mobile')).toBe(false);
+        expect(resultPanel.classList.contains('hidden-on-mobile')).toBe(true);
+      });
+
+      it('switches between Editor Workspace and Result Preview tabs on mobile', async () => {
+        const doc = makeDoc({ id: 'doc-mobile-toggle', name: 'mobile-toggle.pdf' });
+        render(<Workspace documents={[doc]} />);
+
+        const editorTab = screen.getByRole('tab', { name: /editor workspace/i });
+        const resultTab = screen.getByRole('tab', { name: /result preview/i });
+
+        const editorPanel = screen.getByRole('region', { name: /editor workspace/i });
+        const resultPanel = screen.getByRole('region', { name: /result preview/i });
+
+        // Click Result Preview Tab
+        fireEvent.click(resultTab);
+
+        expect(resultTab.getAttribute('aria-selected')).toBe('true');
+        expect(editorTab.getAttribute('aria-selected')).toBe('false');
+        expect(editorPanel.classList.contains('hidden-on-mobile')).toBe(true);
+        expect(resultPanel.classList.contains('hidden-on-mobile')).toBe(false);
+
+        // Click Editor Workspace Tab to switch back
+        fireEvent.click(editorTab);
+
+        expect(editorTab.getAttribute('aria-selected')).toBe('true');
+        expect(resultTab.getAttribute('aria-selected')).toBe('false');
+        expect(editorPanel.classList.contains('hidden-on-mobile')).toBe(false);
+        expect(resultPanel.classList.contains('hidden-on-mobile')).toBe(true);
+      });
+
+      it('displays overlay count badge on editor tab when overlay is configured', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        // Initially 0 overlays, badge is not rendered
+        expect(screen.queryByLabelText(/1 overlays/i)).toBeNull();
+
+        // Select overlay
+        const select = screen.getByLabelText('Select overlay document') as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: 'doc-overlay' } });
+
+        await waitFor(() => {
+          expect(screen.getByLabelText(/1 overlays/i)).toBeDefined();
+        });
+      });
+    });
   });
 });
+
 
 
