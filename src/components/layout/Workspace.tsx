@@ -878,9 +878,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         aria-live="polite"
         aria-atomic="true"
       >
-        {mainDoc
-          ? `Document: page ${safeCurrentPage} of ${totalPages}`
-          : 'No document loaded'}
+        {mainDoc ? `Document: page ${safeCurrentPage} of ${totalPages}` : ''}
       </div>
 
       {/* Top Document Tray */}
@@ -913,59 +911,69 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
         <div className="document-tray-cards">
           {documents.length > 0 ? (
-            documents.map((doc, index) => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                position={index + 1}
-                totalDocuments={documents.length}
-                isMain={doc.id === mainDoc?.id}
-                onSetMain={handleSelectMainDoc}
-                onRemove={onRemoveDocument ?? (() => {})}
-                onMoveUp={(id) => onMoveDocument?.(id, 'up')}
-                onMoveDown={(id) => onMoveDocument?.(id, 'down')}
-                isDragging={draggedIndex === index}
-                isDragOver={dragOverIndex === index && draggedIndex !== index}
-                onDragStart={() => handleCardDragStart(index)}
-                onDragOver={(e) => handleCardDragOver(e, index)}
-                onDragEnd={handleCardDragEnd}
-                onDrop={(e) => handleCardDrop(e, index)}
-              />
-            ))
-          ) : !isProcessing ? (
-            <div
-              className="document-tray-empty-zone"
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                fileInputRef.current?.click();
-                if (onUploadClick) onUploadClick();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
+            <>
+              {documents.map((doc, index) => (
+                <DocumentCard
+                  key={doc.id}
+                  document={doc}
+                  position={index + 1}
+                  totalDocuments={documents.length}
+                  isMain={doc.id === mainDoc?.id}
+                  onSetMain={handleSelectMainDoc}
+                  onRemove={onRemoveDocument ?? (() => {})}
+                  onMoveUp={(id) => onMoveDocument?.(id, 'up')}
+                  onMoveDown={(id) => onMoveDocument?.(id, 'down')}
+                  isDragging={draggedIndex === index}
+                  isDragOver={dragOverIndex === index && draggedIndex !== index}
+                  onDragStart={() => handleCardDragStart(index)}
+                  onDragOver={(e) => handleCardDragOver(e, index)}
+                  onDragEnd={handleCardDragEnd}
+                  onDrop={(e) => handleCardDrop(e, index)}
+                />
+              ))}
+
+              {/* Inline processing indicator during multi-file ingestion */}
+              {isProcessing && (
+                <div
+                  className="document-card-loading"
+                  aria-label="Validating uploaded files"
+                >
+                  <Spinner size="sm" label="Validating..." />
+                  <span className="document-card-loading-text">Validating...</span>
+                </div>
+              )}
+
+              {/* Add PDFs button appearing as the last item in the queue */}
+              <button
+                type="button"
+                className="doc-card-add-btn"
+                onClick={() => {
                   fileInputRef.current?.click();
                   if (onUploadClick) onUploadClick();
-                }
-              }}
-              aria-label="Upload a PDF to get started"
-            >
+                }}
+                disabled={isProcessing}
+                aria-label={isProcessing ? 'Validating...' : '+ Add PDFs'}
+                title={isProcessing ? 'Validating...' : 'Add more PDFs to queue'}
+              >
+                <Plus size={15} />
+                <span>{isProcessing ? 'Validating...' : '+ Add PDFs'}</span>
+              </button>
+            </>
+          ) : !isProcessing ? (
+            <div className="document-tray-empty-zone">
               <Upload
                 size={14}
                 className="document-tray-empty-icon"
                 aria-hidden="true"
               />
               <span className="document-tray-empty-hint">
-                Upload a PDF to get started. Your documents will appear here.
+                No documents in queue. Your uploaded files will appear here.
               </span>
               <span className="document-tray-empty-subtext">
                 Supports PDF up to 50MB
               </span>
             </div>
-          ) : null}
-
-          {/* Inline processing indicator during multi-file ingestion */}
-          {isProcessing && (
+          ) : (
             <div
               className="document-card-loading"
               aria-label="Validating uploaded files"
@@ -990,19 +998,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             }
           }}
         />
-        <Button
-          variant="primary"
-          size="sm"
-          isLoading={isProcessing}
-          leftIcon={<Upload size={14} />}
-          style={{ flexShrink: 0 }}
-          onClick={() => {
-            fileInputRef.current?.click();
-            if (onUploadClick) onUploadClick();
-          }}
-        >
-          {isProcessing ? 'Validating...' : '+ Add PDFs'}
-        </Button>
       </section>
 
       {/* Responsive View Switcher (for small viewports) */}
@@ -1184,13 +1179,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                   <Button
                     variant="primary"
                     size="sm"
+                    isLoading={isProcessing}
                     leftIcon={<Upload size={14} />}
                     onClick={() => {
                       fileInputRef.current?.click();
                       if (onUploadClick) onUploadClick();
                     }}
                   >
-                    Upload a Document
+                    {isProcessing ? 'Validating...' : 'Upload a Document'}
                   </Button>
                 </div>
               ) : (

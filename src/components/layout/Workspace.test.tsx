@@ -64,15 +64,22 @@ function makeDoc(overrides?: Partial<{ id: string; name: string }>) {
 }
 
 describe('Workspace component', () => {
-  it('renders Document Tray with upload button and empty queue state', () => {
+  it('renders Document Tray with empty queue state and does not show separate add button when empty', () => {
     render(<Workspace />);
     expect(screen.getByText('Uploaded Documents')).toBeDefined();
-    expect(screen.getByRole('button', { name: /add pdfs/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /add pdfs/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /upload a document/i })).toBeDefined();
   });
 
   it('shows empty-state hint when no documents are provided', () => {
     render(<Workspace />);
-    expect(screen.getByText(/upload a pdf to get started/i)).toBeDefined();
+    expect(screen.getByText(/no documents in queue/i)).toBeDefined();
+  });
+
+  it('renders + Add PDFs button as the last queue item when documents are uploaded', () => {
+    const doc = makeDoc({ id: 'doc-queue', name: 'queue.pdf' });
+    render(<Workspace documents={[doc]} />);
+    expect(screen.getByRole('button', { name: /add pdfs/i })).toBeDefined();
   });
 
   it('renders both Editor Workspace and Result Preview panes', () => {
@@ -87,10 +94,10 @@ describe('Workspace component', () => {
     expect(screen.getByText('Live Composite Output')).toBeDefined();
   });
 
-  it('triggers onUploadClick callback when upload button is clicked', () => {
+  it('triggers onUploadClick callback when primary upload button is clicked', () => {
     const handleUpload = vi.fn();
     render(<Workspace onUploadClick={handleUpload} />);
-    const uploadBtn = screen.getByRole('button', { name: /add pdfs/i });
+    const uploadBtn = screen.getByRole('button', { name: /upload a document/i });
     fireEvent.click(uploadBtn);
     expect(handleUpload).toHaveBeenCalledTimes(1);
   });
@@ -1775,13 +1782,13 @@ describe('Workspace component', () => {
     });
 
     describe('Refined Empty & First-Run States (Phase 11: Task 11.1)', () => {
-      it('renders interactive drop zone and workflow onboarding steps when no documents exist', () => {
+      it('renders empty queue state and workflow onboarding steps when no documents exist', () => {
         const onUploadClick = vi.fn();
         render(<Workspace documents={[]} onUploadClick={onUploadClick} />);
 
-        // Document Tray drop zone
+        // Document Tray empty zone
         expect(
-          screen.getByText(/upload a pdf to get started/i),
+          screen.getByText(/no documents in queue/i),
         ).toBeDefined();
         expect(screen.getByText(/supports pdf up to 50mb/i)).toBeDefined();
 
@@ -1791,21 +1798,12 @@ describe('Workspace component', () => {
         expect(screen.getByText('Stack & Crop')).toBeDefined();
         expect(screen.getByText('Download Result')).toBeDefined();
 
-        // Clicking drop zone triggers onUploadClick
-        const dropZone = screen.getByLabelText(/upload a pdf to get started/i);
-        fireEvent.click(dropZone);
-        expect(onUploadClick).toHaveBeenCalledTimes(1);
-
-        // Pressing Enter key on drop zone triggers onUploadClick
-        fireEvent.keyDown(dropZone, { key: 'Enter' });
-        expect(onUploadClick).toHaveBeenCalledTimes(2);
-
-        // Clicking upload button in empty editor triggers onUploadClick
+        // Prominent upload button in empty editor triggers onUploadClick
         const uploadBtn = screen.getByRole('button', {
           name: /upload a document/i,
         });
         fireEvent.click(uploadBtn);
-        expect(onUploadClick).toHaveBeenCalledTimes(3);
+        expect(onUploadClick).toHaveBeenCalledTimes(1);
 
         // Result Preview empty state
         expect(screen.getByText('Live Composite Output')).toBeDefined();
@@ -1819,7 +1817,8 @@ describe('Workspace component', () => {
 
     describe('Loading & Processing State Feedback (Phase 11: Task 11.2)', () => {
       it('renders validating indicator in Document Tray and button when isProcessing is true', () => {
-        render(<Workspace documents={[]} isProcessing={true} />);
+        const doc = makeDoc({ id: 'doc-val', name: 'val.pdf' });
+        render(<Workspace documents={[doc]} isProcessing={true} />);
 
         // Button indicates validating state
         expect(
