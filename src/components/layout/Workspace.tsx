@@ -21,6 +21,8 @@ import {
   Crop,
   RotateCcw,
   Move,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import {
   UploadedDocument,
@@ -136,6 +138,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [overlays, setOverlays] = useState<PageOverlay[]>(initialOverlays ?? []);
   const [activeOverlayId, setActiveOverlayId] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
+  const [isMobileOverlayDrawerOpen, setIsMobileOverlayDrawerOpen] = useState(false);
 
   const handleSelectMainDoc = useCallback(
     (id: string) => {
@@ -1356,31 +1359,69 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               </Button>
             </div>
 
-            <div className="editor-control-group overlay-controls">
-              <Layers size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <select
-                className="overlay-select"
-                value={activeOverlay?.overlayDocumentId ?? ''}
-                disabled={!mainDoc || overlayDocOptions.length === 0}
-                aria-label="Select overlay document"
-                onChange={(e) => handleOverlayDocChange(e.target.value)}
-              >
-                <option value="" disabled>
-                  {!mainDoc
-                    ? 'Upload a document'
-                    : overlayDocOptions.length === 0
-                      ? 'Need 2+ documents'
-                      : '— Select Overlay —'}
-                </option>
-                {overlayDocOptions.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name}
-                  </option>
-                ))}
-              </select>
+            {/* Mobile Sheet Toggle Trigger */}
+            <Button
+              variant={isMobileOverlayDrawerOpen ? 'secondary' : 'ghost'}
+              size="sm"
+              className="mobile-overlay-toggle-btn"
+              onClick={() => setIsMobileOverlayDrawerOpen((prev) => !prev)}
+              aria-expanded={isMobileOverlayDrawerOpen}
+              aria-controls="overlay-controls-panel"
+              aria-label="Toggle overlay settings"
+              title="Overlay settings"
+            >
+              <SlidersHorizontal size={14} />
+              <span>{activeOverlay ? 'Overlay' : 'Add Overlay'}</span>
+              {activeOverlay && (
+                <span className="mobile-overlay-active-dot" aria-hidden="true" />
+              )}
+            </Button>
 
-              {activeOverlay && overlayTotalPages > 0 && (
-                <>
+            <div
+              id="overlay-controls-panel"
+              className={`editor-control-group overlay-controls ${isMobileOverlayDrawerOpen ? 'is-mobile-open' : ''}`.trim()}
+            >
+              <div className="mobile-overlay-sheet-header">
+                <div className="mobile-overlay-sheet-title">
+                  <Layers size={15} aria-hidden="true" />
+                  <span>Overlay Settings</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mobile-overlay-close-btn"
+                  onClick={() => setIsMobileOverlayDrawerOpen(false)}
+                  aria-label="Close overlay settings"
+                  title="Close overlay settings"
+                >
+                  <X size={15} />
+                </Button>
+              </div>
+
+              <div className="overlay-sheet-row overlay-select-row">
+                <Layers size={14} className="desktop-overlay-icon" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <select
+                  className="overlay-select"
+                  value={activeOverlay?.overlayDocumentId ?? ''}
+                  disabled={!mainDoc || overlayDocOptions.length === 0}
+                  aria-label="Select overlay document"
+                  onChange={(e) => handleOverlayDocChange(e.target.value)}
+                >
+                  <option value="" disabled>
+                    {!mainDoc
+                      ? 'Upload a document'
+                      : overlayDocOptions.length === 0
+                        ? 'Need 2+ documents'
+                        : '— Select Overlay —'}
+                  </option>
+                  {overlayDocOptions.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.name}
+                    </option>
+                  ))}
+                </select>
+
+                {activeOverlay && overlayTotalPages > 0 && (
                   <div className="overlay-page-controls">
                     <Button
                       variant="ghost"
@@ -1406,173 +1447,194 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                       <ChevronRight size={12} />
                     </Button>
                   </div>
+                )}
+              </div>
 
-                  <div
-                    className="overlay-opacity-controls"
-                    title="Overlay Opacity"
-                  >
-                    <span className="overlay-opacity-label">Opacity</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="overlay-stepper-btn"
-                      aria-label="Decrease opacity"
-                      title="Decrease opacity"
-                      disabled={Math.round(activeOverlay.opacity * 100) <= 0}
-                      onClick={() =>
-                        handleOverlayOpacityChange(
-                          Math.max(
-                            0,
-                            Math.round(activeOverlay.opacity * 100 - 5) / 100,
-                          ),
-                        )
-                      }
+              {activeOverlay && overlayTotalPages > 0 && (
+                <>
+                  <div className="overlay-sheet-row overlay-adjust-row">
+                    <div
+                      className="overlay-opacity-controls"
+                      title="Overlay Opacity"
                     >
-                      <Minus size={10} />
-                    </Button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="5"
-                      value={Math.round(activeOverlay.opacity * 100)}
-                      className="overlay-opacity-slider"
-                      aria-label="Overlay opacity"
-                      onChange={(e) =>
-                        handleOverlayOpacityChange(Number(e.target.value) / 100)
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="overlay-opacity-value"
-                      title="Click to reset opacity to 100%"
-                      aria-label={`Current opacity: ${Math.round(activeOverlay.opacity * 100)}%. Click to reset to 100%`}
-                      onClick={() => handleOverlayOpacityChange(1.0)}
-                    >
-                      {Math.round(activeOverlay.opacity * 100)}%
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="overlay-stepper-btn"
-                      aria-label="Increase opacity"
-                      title="Increase opacity"
-                      disabled={Math.round(activeOverlay.opacity * 100) >= 100}
-                      onClick={() =>
-                        handleOverlayOpacityChange(
-                          Math.min(
-                            1.0,
-                            Math.round(activeOverlay.opacity * 100 + 5) / 100,
-                          ),
-                        )
-                      }
-                    >
-                      <Plus size={10} />
-                    </Button>
-                  </div>
-
-                  <div
-                    className="overlay-scale-controls"
-                    title="Overlay Scale"
-                  >
-                    <span className="overlay-scale-label">Scale</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="overlay-stepper-btn"
-                      aria-label="Decrease scale"
-                      title="Decrease scale"
-                      disabled={Math.round(activeOverlay.scale * 100) <= 25}
-                      onClick={() =>
-                        handleOverlayScaleChange(
-                          Math.max(
-                            0.25,
-                            Math.round(activeOverlay.scale * 100 - 5) / 100,
-                          ),
-                        )
-                      }
-                    >
-                      <Minus size={10} />
-                    </Button>
-                    <input
-                      type="range"
-                      min="25"
-                      max="200"
-                      step="5"
-                      value={Math.round(activeOverlay.scale * 100)}
-                      className="overlay-scale-slider"
-                      aria-label="Overlay scale"
-                      onChange={(e) =>
-                        handleOverlayScaleChange(Number(e.target.value) / 100)
-                      }
-                    />
-                    <span className="overlay-scale-value">
-                      {Math.round(activeOverlay.scale * 100)}%
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="overlay-stepper-btn"
-                      aria-label="Increase scale"
-                      title="Increase scale"
-                      disabled={Math.round(activeOverlay.scale * 100) >= 200}
-                      onClick={() =>
-                        handleOverlayScaleChange(
-                          Math.min(
-                            2.0,
-                            Math.round(activeOverlay.scale * 100 + 5) / 100,
-                          ),
-                        )
-                      }
-                    >
-                      <Plus size={10} />
-                    </Button>
-                  </div>
-
-                  <div className="overlay-crop-controls">
-                    <Button
-                      variant={isCropping ? 'primary' : 'ghost'}
-                      size="sm"
-                      aria-label={isCropping ? 'Done cropping' : 'Crop overlay'}
-                      title={isCropping ? 'Done cropping' : 'Crop overlay region'}
-                      onClick={handleToggleCrop}
-                    >
-                      <Crop size={12} />
-                    </Button>
-                    {activeOverlay.cropRect && (
+                      <span className="overlay-opacity-label">Opacity</span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-label="Reset crop"
-                        title="Reset crop to full page"
-                        onClick={handleResetCrop}
+                        className="overlay-stepper-btn"
+                        aria-label="Decrease opacity"
+                        title="Decrease opacity"
+                        disabled={Math.round(activeOverlay.opacity * 100) <= 0}
+                        onClick={() =>
+                          handleOverlayOpacityChange(
+                            Math.max(
+                              0,
+                              Math.round(activeOverlay.opacity * 100 - 5) / 100,
+                            ),
+                          )
+                        }
                       >
-                        <RotateCcw size={12} />
+                        <Minus size={12} />
                       </Button>
-                    )}
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={Math.round(activeOverlay.opacity * 100)}
+                        className="overlay-opacity-slider"
+                        aria-label="Overlay opacity"
+                        onChange={(e) =>
+                          handleOverlayOpacityChange(Number(e.target.value) / 100)
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="overlay-opacity-value"
+                        title="Click to reset opacity to 100%"
+                        aria-label={`Current opacity: ${Math.round(activeOverlay.opacity * 100)}%. Click to reset to 100%`}
+                        onClick={() => handleOverlayOpacityChange(1.0)}
+                      >
+                        {Math.round(activeOverlay.opacity * 100)}%
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="overlay-stepper-btn"
+                        aria-label="Increase opacity"
+                        title="Increase opacity"
+                        disabled={Math.round(activeOverlay.opacity * 100) >= 100}
+                        onClick={() =>
+                          handleOverlayOpacityChange(
+                            Math.min(
+                              1.0,
+                              Math.round(activeOverlay.opacity * 100 + 5) / 100,
+                            ),
+                          )
+                        }
+                      >
+                        <Plus size={12} />
+                      </Button>
+                    </div>
+
+                    <div
+                      className="overlay-scale-controls"
+                      title="Overlay Scale"
+                    >
+                      <span className="overlay-scale-label">Scale</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="overlay-stepper-btn"
+                        aria-label="Decrease scale"
+                        title="Decrease scale"
+                        disabled={Math.round(activeOverlay.scale * 100) <= 25}
+                        onClick={() =>
+                          handleOverlayScaleChange(
+                            Math.max(
+                              0.25,
+                              Math.round(activeOverlay.scale * 100 - 5) / 100,
+                            ),
+                          )
+                        }
+                      >
+                        <Minus size={12} />
+                      </Button>
+                      <input
+                        type="range"
+                        min="25"
+                        max="200"
+                        step="5"
+                        value={Math.round(activeOverlay.scale * 100)}
+                        className="overlay-scale-slider"
+                        aria-label="Overlay scale"
+                        onChange={(e) =>
+                          handleOverlayScaleChange(Number(e.target.value) / 100)
+                        }
+                      />
+                      <span className="overlay-scale-value">
+                        {Math.round(activeOverlay.scale * 100)}%
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="overlay-stepper-btn"
+                        aria-label="Increase scale"
+                        title="Increase scale"
+                        disabled={Math.round(activeOverlay.scale * 100) >= 200}
+                        onClick={() =>
+                          handleOverlayScaleChange(
+                            Math.min(
+                              2.0,
+                              Math.round(activeOverlay.scale * 100 + 5) / 100,
+                            ),
+                          )
+                        }
+                      >
+                        <Plus size={12} />
+                      </Button>
+                    </div>
                   </div>
 
-                  {(activeOverlay.position.x !== 0 || activeOverlay.position.y !== 0) && (
+                  <div className="overlay-sheet-row overlay-actions-row">
+                    <div className="overlay-crop-controls">
+                      <Button
+                        variant={isCropping ? 'primary' : 'ghost'}
+                        size="sm"
+                        aria-label={isCropping ? 'Done cropping' : 'Crop overlay'}
+                        title={isCropping ? 'Done cropping' : 'Crop overlay region'}
+                        onClick={() => {
+                          handleToggleCrop();
+                          if (!isCropping) {
+                            setIsMobileOverlayDrawerOpen(false);
+                          }
+                        }}
+                      >
+                        <Crop size={14} />
+                        <span className="mobile-action-label">{isCropping ? 'Done Crop' : 'Crop'}</span>
+                      </Button>
+                      {activeOverlay.cropRect && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label="Reset crop"
+                          title="Reset crop to full page"
+                          onClick={handleResetCrop}
+                        >
+                          <RotateCcw size={14} />
+                          <span className="mobile-action-label">Reset Crop</span>
+                        </Button>
+                      )}
+                    </div>
+
+                    {(activeOverlay.position.x !== 0 || activeOverlay.position.y !== 0) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Reset overlay position"
+                        title="Reset overlay position to top-left"
+                        onClick={handleResetPosition}
+                      >
+                        <Move size={14} />
+                        <span className="mobile-action-label">Reset Pos</span>
+                      </Button>
+                    )}
+
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label="Reset overlay position"
-                      title="Reset overlay position to top-left"
-                      onClick={handleResetPosition}
+                      aria-label="Remove overlay"
+                      title="Remove overlay from this page"
+                      onClick={() => {
+                        handleRemoveOverlay(activeOverlay.id);
+                        setIsMobileOverlayDrawerOpen(false);
+                      }}
+                      className="overlay-remove-btn"
                     >
-                      <Move size={12} />
+                      <Trash2 size={14} />
+                      <span className="mobile-action-label">Remove</span>
                     </Button>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Remove overlay"
-                    title="Remove overlay from this page"
-                    onClick={() => handleRemoveOverlay(activeOverlay.id)}
-                  >
-                    <Trash2 size={12} />
-                  </Button>
+                  </div>
                 </>
               )}
             </div>

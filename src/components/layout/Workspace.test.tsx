@@ -1997,6 +1997,36 @@ describe('Workspace component', () => {
         });
       });
     });
+
+    describe('Mobile Toolbar & Responsive Controls Sheet (Phase 17: Task 17.3)', () => {
+      it('renders mobile overlay toggle button and toggles the mobile controls drawer', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const docOverlay = makeDoc({ id: 'doc-overlay', name: 'overlay.pdf' });
+
+        render(<Workspace documents={[docMain, docOverlay]} />);
+
+        const toggleBtn = screen.getByRole('button', { name: /toggle overlay settings/i });
+        expect(toggleBtn).toBeDefined();
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+        const controlsPanel = document.getElementById('overlay-controls-panel');
+        expect(controlsPanel).toBeDefined();
+        expect(controlsPanel?.classList.contains('is-mobile-open')).toBe(false);
+
+        // Open mobile drawer
+        fireEvent.click(toggleBtn);
+
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+        expect(controlsPanel?.classList.contains('is-mobile-open')).toBe(true);
+
+        // Close via close button in sheet header
+        const closeBtn = screen.getByRole('button', { name: /close overlay settings/i });
+        fireEvent.click(closeBtn);
+
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+        expect(controlsPanel?.classList.contains('is-mobile-open')).toBe(false);
+      });
+    });
   });
 });
 
