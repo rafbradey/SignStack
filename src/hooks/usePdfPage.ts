@@ -90,6 +90,14 @@ export function usePdfPage({
         }
         activeRenderTaskRef.current = null;
       }
+      if (activePageRef.current) {
+        activePageRef.current.cleanup();
+        activePageRef.current = null;
+      }
+      if (canvasRef.current) {
+        canvasRef.current.width = 0;
+        canvasRef.current.height = 0;
+      }
       return;
     }
 
@@ -102,6 +110,12 @@ export function usePdfPage({
           // Expected cancellation
         }
         activeRenderTaskRef.current = null;
+      }
+
+      // Cleanup previous page proxy if switching pages
+      if (activePageRef.current) {
+        activePageRef.current.cleanup();
+        activePageRef.current = null;
       }
 
       setPageState((prev) => ({
@@ -217,6 +231,18 @@ export function usePdfPage({
       }
     };
   }, [document, pageNumber, scale, rotation, isValidPage]);
+
+  // Release GPU canvas backing store buffer when hook unmounts completely
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    };
+  }, []);
 
   // When invalid, derive null state without triggering cascading render effect
   if (!isValidPage) {

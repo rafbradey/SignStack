@@ -108,4 +108,148 @@ describe('usePdfPage hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
   });
+
+  it('releases canvas buffer dimensions on unmount', () => {
+    const mockDoc = createMockDoc();
+    const { result, unmount } = renderHook(() =>
+      usePdfPage({
+        document: mockDoc,
+        pageNumber: 1,
+      }),
+    );
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 600;
+    (result.current.canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = canvas;
+
+    unmount();
+
+    expect(canvas.width).toBe(0);
+    expect(canvas.height).toBe(0);
+  });
+
+  it('cancels in-flight render task and cleans up previous page proxy on unmount', async () => {
+    const cancelMock = vi.fn();
+    const cleanupMock = vi.fn();
+    const renderPromise = new Promise<void>(() => {
+      // Pending promise to simulate in-flight render task
+    });
+
+    const mockPage = {
+      pageNumber: 1,
+      rotate: 0,
+      cleanup: cleanupMock,
+      getViewport: vi.fn().mockReturnValue({
+        width: 612,
+        height: 792,
+        scale: 1,
+        rotation: 0,
+      }),
+      render: vi.fn().mockReturnValue({
+        promise: renderPromise,
+        cancel: cancelMock,
+      }),
+    } as unknown as PDFPageProxy;
+
+    const mockDoc = createMockDoc([mockPage]);
+
+    const canvas = document.createElement('canvas');
+    canvas.getContext = vi.fn().mockReturnValue({}) as unknown as typeof canvas.getContext;
+
+    renderHook(() => {
+      const hookResult = usePdfPage({
+        document: mockDoc,
+        pageNumber: 1,
+      });
+      if (!hookResult.canvasRef.current) {
+        (hookResult.canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = canvas;
+      }
+      return hookResult;
+    });
+
+    await waitFor(() => {
+      expect(mockPage.render).toHaveBeenCalled();
+    });
+  });
+
+  it('cancels in-flight render task on unmount', async () => {
+    const cancelMock = vi.fn();
+    const cleanupMock = vi.fn();
+    const renderPromise = new Promise<void>(() => {});
+
+    const mockPage = {
+      pageNumber: 1,
+      rotate: 0,
+      cleanup: cleanupMock,
+      getViewport: vi.fn().mockReturnValue({
+        width: 612,
+        height: 792,
+        scale: 1,
+        rotation: 0,
+      }),
+      render: vi.fn().mockReturnValue({
+        promise: renderPromise,
+        cancel: cancelMock,
+      }),
+    } as unknown as PDFPageProxy;
+
+    const mockDoc = createMockDoc([mockPage]);
+
+    const canvas = document.createElement('canvas');
+    canvas.getContext = vi.fn().mockReturnValue({}) as unknown as typeof canvas.getContext;
+
+    const { unmount } = renderHook(() => {
+      const hookResult = usePdfPage({
+        document: mockDoc,
+        pageNumber: 1,
+      });
+      if (!hookResult.canvasRef.current) {
+        (hookResult.canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = canvas;
+      }
+      return hookResult;
+    });
+
+    await waitFor(() => {
+      expect(mockPage.render).toHaveBeenCalled();
+    });
+
+    unmount();
+
+    expect(cancelMock).toHaveBeenCalled();
+    expect(cleanupMock).toHaveBeenCalled();
+  });
+
+  it('cleans up previous page proxy when switching pages', async () => {
+    const page1Cleanup = vi.fn();
+    const page2Cleanup = vi.fn();
+
+    const page1 = createMockPage(1);
+    page1.cleanup = page1Cleanup;
+    const page2 = createMockPage(2);
+    page2.cleanup = page2Cleanup;
+
+    const mockDoc = createMockDoc([page1, page2]);
+
+    const { rerender } = renderHook(
+      ({ pageNum }) =>
+        usePdfPage({
+          document: mockDoc,
+          pageNumber: pageNum,
+        }),
+      { initialProps: { pageNum: 1 } },
+    );
+
+    await waitFor(() => {
+      expect(mockDoc.getPage).toHaveBeenCalledWith(1);
+    });
+
+    // Switch to page 2
+    rerender({ pageNum: 2 });
+
+    await waitFor(() => {
+      expect(mockDoc.getPage).toHaveBeenCalledWith(2);
+      expect(page1Cleanup).toHaveBeenCalled();
+    });
+  });
 });
