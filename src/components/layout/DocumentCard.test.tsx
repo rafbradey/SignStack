@@ -154,4 +154,53 @@ describe('DocumentCard component', () => {
     expect(renderCount).toBe(2);
     expect(screen.getByText(doc.name)).toBeDefined();
   });
+
+  it('provides accessible buttons for touch queue interactions (Task 17.2)', () => {
+    const onSetMain = vi.fn();
+    const onMoveUp = vi.fn();
+    const onMoveDown = vi.fn();
+    const onRemove = vi.fn();
+    const doc = createMockDoc('doc-touch', 'touch-invoice.pdf');
+
+    render(
+      <DocumentCard
+        document={doc}
+        position={2}
+        totalDocuments={3}
+        isMain={false}
+        onSetMain={onSetMain}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onRemove={onRemove}
+      />,
+    );
+
+    // Reorder buttons must be accessible with clear labels
+    const moveUpBtn = screen.getByRole('button', { name: /Move "touch-invoice\.pdf" up/i });
+    const moveDownBtn = screen.getByRole('button', { name: /Move "touch-invoice\.pdf" down/i });
+    const removeBtn = screen.getByRole('button', { name: /Remove "touch-invoice\.pdf"/i });
+    const setMainBtn = screen.getByRole('button', { name: /Set "touch-invoice\.pdf" as Main Document/i });
+
+    expect(moveUpBtn).toBeDefined();
+    expect(moveDownBtn).toBeDefined();
+    expect(removeBtn).toBeDefined();
+    expect(setMainBtn).toBeDefined();
+
+    // Tap move up
+    fireEvent.click(moveUpBtn);
+    expect(onMoveUp).toHaveBeenCalledWith('doc-touch');
+
+    // Tap move down
+    fireEvent.click(moveDownBtn);
+    expect(onMoveDown).toHaveBeenCalledWith('doc-touch');
+
+    // Tap set main
+    fireEvent.click(setMainBtn);
+    expect(onSetMain).toHaveBeenCalledWith('doc-touch');
+
+    // Tap remove
+    fireEvent.click(removeBtn);
+    expect(onRemove).toHaveBeenCalledWith('doc-touch');
+  });
 });
+

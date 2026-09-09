@@ -23,6 +23,7 @@
   cursor: pointer;
   user-select: none;
   position: relative;
+  scroll-snap-align: start;
 }
 
 .doc-card:hover {
@@ -212,4 +213,70 @@
 .doc-card-remove:hover:not(:disabled) {
   color: var(--danger-text) !important;
   background-color: var(--danger-subtle) !important;
+}
+
+/* Touch & Mobile Optimizations (< 1024px or coarse pointer) */
+@media (max-width: 1024px), (pointer: coarse) {
+  .doc-card-reorder {
+    opacity: 1; /* Always visible on touch screens without hover */
+  }
+
+  .doc-card-btn-icon {
+    min-width: 28px !important;
+    height: 28px !important;
+    position: relative;
+    touch-action: manipulation;
+  }
+
+  /* Expand touch target to 44x44px per WCAG 2.5.5 */
+  .doc-card-btn-icon::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .doc-card-set-main-btn {
+    font-size: 11px;
+    padding: 2px 6px;
+    background-color: var(--primary-subtle);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    position: relative;
+    touch-action: manipulation;
+  }
+
+  .doc-card-set-main-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Narrow mobile screens (< 640px) */
+@media (max-width: 640px) {
+  .doc-card {
+    width: 240px;
+    min-width: 240px;
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-1);
+    height: 46px;
+  }
+
+  /* Hide HTML5 drag handle on mobile where touch reordering uses buttons */
+  .doc-card-drag-handle {
+    display: none;
+  }
+
+  .doc-card-icon {
+    width: 22px;
+    height: 22px;
+  }
 }

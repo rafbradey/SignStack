@@ -61,6 +61,8 @@
   min-width: 0; /* allow flex item to shrink below content size */
   padding: var(--space-1) 0;
   scrollbar-width: thin; /* Firefox: thin scrollbar */
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Webkit thin scrollbar for horizontal tray */
@@ -164,6 +166,7 @@
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
+  scroll-snap-align: start;
 }
 
 .doc-card-add-btn:hover:not(:disabled) {
@@ -731,6 +734,27 @@ button.overlay-opacity-value:focus-visible {
 
 /* Small mobile devices (< 640px) */
 @media (max-width: 640px) {
+  .document-tray {
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-2);
+    height: 54px;
+  }
+
+  .document-tray-title {
+    display: none;
+  }
+
+  .document-tray-count {
+    border-left: none;
+    padding-left: 0;
+    font-size: 11px;
+  }
+
+  .doc-card-add-btn {
+    height: 46px;
+    padding: 0 var(--space-3);
+  }
+
   .pane-footer {
     padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
   }
