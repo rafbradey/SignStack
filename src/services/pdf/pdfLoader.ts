@@ -1,4 +1,5 @@
 import { pdfjsLib, PDFDocumentProxy } from './pdfConfig';
+import { formatPdfErrorMessage } from '@/utils/pdfErrorUtils';
 
 /**
  * In-memory cache of parsed PDF documents keyed by document identifier.
@@ -31,7 +32,16 @@ export async function loadPdfDocument(
     data: new Uint8Array(arrayBuffer),
   });
 
-  const pdfDoc = await loadingTask.promise;
+  let pdfDoc: PDFDocumentProxy;
+  try {
+    pdfDoc = await loadingTask.promise;
+  } catch (error) {
+    const friendlyMessage = formatPdfErrorMessage(
+      error,
+      `Failed to load PDF document "${file.name}". The file may be damaged or invalid.`,
+    );
+    throw new Error(friendlyMessage, { cause: error });
+  }
 
   if (docId) {
     documentCache.set(docId, pdfDoc);

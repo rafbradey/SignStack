@@ -122,4 +122,40 @@ describe('pdfLoader service', () => {
     const count = await getPdfPageCount(file, 'page-count-test');
     expect(count).toBe(7);
   });
+
+  it('normalizes password-protected PDF errors with actionable guidance', async () => {
+    const passwordError = {
+      name: 'PasswordException',
+      message: 'Password required',
+    };
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.reject(passwordError),
+    } as unknown as LoadingTaskReturn);
+
+    const file = new File(['%PDF-1.4 encrypted'], 'locked.pdf', {
+      type: 'application/pdf',
+    });
+
+    await expect(loadPdfDocument(file, 'locked-doc')).rejects.toThrow(
+      'This PDF is password-protected or encrypted. Please remove the password before uploading.',
+    );
+  });
+
+  it('normalizes corrupted PDF structure errors with friendly guidance', async () => {
+    const corruptError = {
+      name: 'InvalidPDFException',
+      message: 'Corrupted xref table',
+    };
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.reject(corruptError),
+    } as unknown as LoadingTaskReturn);
+
+    const file = new File(['%PDF-1.4 broken'], 'broken.pdf', {
+      type: 'application/pdf',
+    });
+
+    await expect(loadPdfDocument(file, 'broken-doc')).rejects.toThrow(
+      'The PDF file appears corrupted, incomplete, or contains malformed data and cannot be opened.',
+    );
+  });
 });

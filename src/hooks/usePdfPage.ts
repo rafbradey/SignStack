@@ -6,6 +6,7 @@ import type {
   RenderTask,
 } from '@/services/pdf';
 import { PageDimensions } from '@/types';
+import { formatPdfErrorMessage, isRenderingCancelledError } from '@/utils';
 
 export interface UsePdfPageOptions {
   /** The loaded PDFDocumentProxy, or null if not yet loaded */
@@ -184,15 +185,11 @@ export function usePdfPage({
         if (isCancelled) return;
 
         // Ignore intentional cancellations
-        const isCancelledException =
-          err &&
-          typeof err === 'object' &&
-          'name' in err &&
-          (err as { name: string }).name === 'RenderingCancelledException';
-
-        if (!isCancelledException) {
-          const message =
-            err instanceof Error ? err.message : 'Failed to render PDF page.';
+        if (!isRenderingCancelledError(err)) {
+          const message = formatPdfErrorMessage(
+            err,
+            'Failed to render PDF page.',
+          );
           setPageState((prev) => ({
             ...prev,
             isLoading: false,

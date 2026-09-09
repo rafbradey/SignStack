@@ -102,7 +102,9 @@ describe('usePdfPage hook', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.error).toBe('Corrupted page stream');
+      expect(result.current.error).toBe(
+        'The PDF file appears corrupted, incomplete, or contains malformed data and cannot be opened.',
+      );
       expect(result.current.isLoading).toBe(false);
     });
   });
