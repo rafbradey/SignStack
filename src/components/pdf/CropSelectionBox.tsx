@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { NormalizedRect } from '@/types';
 import { resizeCropRect, moveCropRect, CropHandle } from '@/utils';
 import './CropSelectionBox.css';
@@ -52,8 +52,23 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeDragStateRef = useRef<ResizeDragState | null>(null);
   const moveDragStateRef = useRef<MoveDragState | null>(null);
+  const resizeRafIdRef = useRef<number | null>(null);
+  const pendingResizeRectRef = useRef<NormalizedRect | null>(null);
+  const moveRafIdRef = useRef<number | null>(null);
+  const pendingMoveRectRef = useRef<NormalizedRect | null>(null);
   const [activeHandle, setActiveHandle] = useState<CropHandle | null>(null);
   const [isDraggingBox, setIsDraggingBox] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (resizeRafIdRef.current !== null) {
+        cancelAnimationFrame(resizeRafIdRef.current);
+      }
+      if (moveRafIdRef.current !== null) {
+        cancelAnimationFrame(moveRafIdRef.current);
+      }
+    };
+  }, []);
 
   const left = `${Math.round(cropRect.x * 10000) / 100}%`;
   const top = `${Math.round(cropRect.y * 10000) / 100}%`;
@@ -115,25 +130,47 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
         deltaY,
       });
 
-      onChange?.(nextRect);
+      pendingResizeRectRef.current = nextRect;
+
+      if (resizeRafIdRef.current === null) {
+        resizeRafIdRef.current = requestAnimationFrame(() => {
+          resizeRafIdRef.current = null;
+          if (pendingResizeRectRef.current && onChange) {
+            onChange(pendingResizeRectRef.current);
+          }
+        });
+      }
     },
     [onChange],
   );
 
-  const handleResizePointerUp = useCallback((e: React.PointerEvent<HTMLSpanElement>) => {
-    const state = resizeDragStateRef.current;
-    if (state && state.pointerId === e.pointerId) {
-      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-        try {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        } catch {
-          // Safe fallback
+  const handleResizePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLSpanElement>) => {
+      const state = resizeDragStateRef.current;
+      if (state && state.pointerId === e.pointerId) {
+        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            // Safe fallback
+          }
+        }
+        resizeDragStateRef.current = null;
+        setActiveHandle(null);
+
+        if (resizeRafIdRef.current !== null) {
+          cancelAnimationFrame(resizeRafIdRef.current);
+          resizeRafIdRef.current = null;
+        }
+
+        if (pendingResizeRectRef.current && onChange) {
+          onChange(pendingResizeRectRef.current);
+          pendingResizeRectRef.current = null;
         }
       }
-      resizeDragStateRef.current = null;
-      setActiveHandle(null);
-    }
-  }, []);
+    },
+    [onChange],
+  );
 
   const handleResizeKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLSpanElement>, handle: CropHandle) => {
@@ -225,25 +262,47 @@ export const CropSelectionBox: React.FC<CropSelectionBoxProps> = ({
         deltaY,
       });
 
-      onChange?.(nextRect);
+      pendingMoveRectRef.current = nextRect;
+
+      if (moveRafIdRef.current === null) {
+        moveRafIdRef.current = requestAnimationFrame(() => {
+          moveRafIdRef.current = null;
+          if (pendingMoveRectRef.current && onChange) {
+            onChange(pendingMoveRectRef.current);
+          }
+        });
+      }
     },
     [onChange],
   );
 
-  const handleBoxPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const state = moveDragStateRef.current;
-    if (state && state.pointerId === e.pointerId) {
-      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-        try {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        } catch {
-          // Safe fallback
+  const handleBoxPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const state = moveDragStateRef.current;
+      if (state && state.pointerId === e.pointerId) {
+        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            // Safe fallback
+          }
+        }
+        moveDragStateRef.current = null;
+        setIsDraggingBox(false);
+
+        if (moveRafIdRef.current !== null) {
+          cancelAnimationFrame(moveRafIdRef.current);
+          moveRafIdRef.current = null;
+        }
+
+        if (pendingMoveRectRef.current && onChange) {
+          onChange(pendingMoveRectRef.current);
+          pendingMoveRectRef.current = null;
         }
       }
-      moveDragStateRef.current = null;
-      setIsDraggingBox(false);
-    }
-  }, []);
+    },
+    [onChange],
+  );
 
   const handleBoxKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {

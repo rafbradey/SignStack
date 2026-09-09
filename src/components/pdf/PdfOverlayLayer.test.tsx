@@ -169,7 +169,7 @@ describe('PdfOverlayLayer component', () => {
   });
 
   describe('Overlay dragging and keyboard positioning (Task 7.4)', () => {
-    it('supports pointer drag to translate overlay position across base document', () => {
+    it('supports pointer drag to translate overlay position across base document', async () => {
       const doc = createMockDoc(300, 300);
       const onPositionChange = vi.fn();
       const baseDimensions = { width: 1000, height: 1000 };
@@ -205,12 +205,14 @@ describe('PdfOverlayLayer component', () => {
         pointerId: 1,
       });
 
-      expect(onPositionChange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          x: expect.closeTo(0.15, 2),
-          y: expect.closeTo(0.2, 2),
-        }),
-      );
+      await waitFor(() => {
+        expect(onPositionChange).toHaveBeenCalledWith(
+          expect.objectContaining({
+            x: expect.closeTo(0.15, 2),
+            y: expect.closeTo(0.2, 2),
+          }),
+        );
+      });
 
       // Finish drag
       fireEvent.pointerUp(region, {

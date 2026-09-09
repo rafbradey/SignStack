@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CropSelectionBox } from './CropSelectionBox';
 import type { NormalizedRect } from '@/types/coordinates';
 
@@ -107,7 +107,7 @@ describe('CropSelectionBox component', () => {
     );
   });
 
-  it('handles pointer drag resizing on SE handle', () => {
+  it('handles pointer drag resizing on SE handle', async () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CropSelectionBox
@@ -156,20 +156,22 @@ describe('CropSelectionBox component', () => {
       pointerId: 1,
     });
 
-    expect(handleChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        x: 0.2,
-        y: 0.25,
-        width: 0.6,
-        height: 0.5,
-      }),
-    );
+    await waitFor(() => {
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          x: 0.2,
+          y: 0.25,
+          width: 0.6,
+          height: 0.5,
+        }),
+      );
+    });
 
     // Pointer up releases drag
     fireEvent.pointerUp(seHandle, { pointerId: 1 });
   });
 
-  it('handles pointer drag translation on crop box body', () => {
+  it('handles pointer drag translation on crop box body', async () => {
     const handleChange = vi.fn();
     const { container } = render(
       <CropSelectionBox
@@ -216,14 +218,16 @@ describe('CropSelectionBox component', () => {
       pointerId: 2,
     });
 
-    expect(handleChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        x: 0.3,
-        y: 0.35,
-        width: 0.5,
-        height: 0.4,
-      }),
-    );
+    await waitFor(() => {
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          x: 0.3,
+          y: 0.35,
+          width: 0.5,
+          height: 0.4,
+        }),
+      );
+    });
 
     // Pointer up
     fireEvent.pointerUp(cropBox, { pointerId: 2 });

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { PDFDocumentProxy } from '@/services/pdf';
 import { usePdfPage } from '@/hooks';
 import { NormalizedRect } from '@/types';
@@ -86,6 +86,16 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
 
   const [isDragging, setIsDragging] = useState(false);
   const dragStateRef = useRef<DragState | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
   const canDrag = isDraggable && !isCropping && Boolean(onPositionChange);
 
@@ -131,25 +141,47 @@ export const PdfOverlayLayer: React.FC<PdfOverlayLayerProps> = ({
         baseBounds: baseDimensions,
       });
 
-      onPositionChange?.(newPos);
+      pendingPosRef.current = newPos;
+
+      if (rafIdRef.current === null) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
+          if (pendingPosRef.current && onPositionChange) {
+            onPositionChange(pendingPosRef.current);
+          }
+        });
+      }
     },
     [baseDimensions, dimensions, onPositionChange],
   );
 
-  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const state = dragStateRef.current;
-    if (state && state.pointerId === e.pointerId) {
-      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-        try {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        } catch {
-          // Safe fallback
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const state = dragStateRef.current;
+      if (state && state.pointerId === e.pointerId) {
+        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            // Safe fallback
+          }
+        }
+        dragStateRef.current = null;
+        setIsDragging(false);
+
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+
+        if (pendingPosRef.current && onPositionChange) {
+          onPositionChange(pendingPosRef.current);
+          pendingPosRef.current = null;
         }
       }
-      dragStateRef.current = null;
-      setIsDragging(false);
-    }
-  }, []);
+    },
+    [onPositionChange],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
