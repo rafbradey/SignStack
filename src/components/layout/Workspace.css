@@ -122,6 +122,32 @@
   overflow: hidden;
 }
 
+/* Maximized Editor Mode */
+.workspace-panes.editor-maximized {
+  grid-template-columns: 1fr;
+}
+
+.workspace-panes.editor-maximized .result-pane {
+  display: none;
+}
+
+.workspace-panes.editor-maximized .editor-pane {
+  border-right: none;
+}
+
+/* Maximized Preview Mode */
+.workspace-panes.preview-maximized {
+  grid-template-columns: 1fr;
+}
+
+.workspace-panes.preview-maximized .editor-pane {
+  display: none;
+}
+
+.workspace-panes.preview-maximized .result-pane {
+  border-right: none;
+}
+
 /* Individual Pane */
 .workspace-pane {
   display: flex;
@@ -135,9 +161,11 @@
   border-right: none;
 }
 
-/* Pane Header / Toolbar */
+/* Pane Header / Toolbar - Enforce consistent height and prevent wrapping misalignments */
 .pane-header {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  min-height: 48px;
+  box-sizing: border-box;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-default);
   display: flex;
@@ -173,8 +201,9 @@
 .pane-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .toolbar-divider {
@@ -317,10 +346,11 @@
   margin-bottom: var(--space-4);
 }
 
-/* Editor Controls Footer */
+/* Pane Controls Footer - Enforce consistent height matching header */
 .pane-footer {
-  min-height: calc(28px + (var(--space-3) * 2) + 1px);
-  padding: var(--space-3) var(--space-4);
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-4);
   background-color: var(--bg-surface);
   border-top: 1px solid var(--border-default);
   display: flex;

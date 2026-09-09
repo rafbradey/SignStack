@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Minimize2,
   Link2,
   ChevronLeft,
   ChevronRight,
@@ -67,6 +68,7 @@ function calculateFitScale(
 }
 
 export type WorkspaceTab = 'editor' | 'result';
+export type WorkspaceLayout = 'split' | 'editor-maximized' | 'preview-maximized';
 
 let overlayIdCounter = 0;
 function generateOverlayId(): string {
@@ -103,6 +105,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   initialOverlays,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>('split');
+  const [editorScaleMode, setEditorScaleMode] = useState<'fit' | 'manual'>('manual');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Main Document: controlled if mainDocumentId is passed, otherwise local state defaulting to first document
@@ -423,6 +427,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     [pageDimensions],
   );
 
+  const updateEditorFit = useCallback(
+    (dims?: PageDimensions) => {
+      const targetDims = dims ?? pageDimensions;
+      if (viewportRef.current && targetDims) {
+        if (
+          viewportRef.current.clientWidth > 100 &&
+          viewportRef.current.clientHeight > 100
+        ) {
+          const fit = calculateFitScale(viewportRef.current, targetDims);
+          setScale(fit);
+          return fit;
+        }
+      }
+      return DEFAULT_ZOOM;
+    },
+    [pageDimensions],
+  );
+
   const handleDimensionsChange = useCallback(
     (dims: PageDimensions) => {
       setPageDimensions(dims);
@@ -436,6 +458,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           setFittedDocId(currentDocId);
           setScale(fit);
         }
+      } else if (editorScaleMode === 'fit' && viewportRef.current) {
+        const fit = calculateFitScale(viewportRef.current, dims);
+        setScale(fit);
       }
       // Compute preview fit scale
       if (previewViewportRef.current) {
@@ -448,29 +473,51 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         }
       }
     },
-    [currentDocId, fittedDocId],
+    [currentDocId, fittedDocId, editorScaleMode],
   );
 
-  // Recalculate preview fit on window resize
+  // Recalculate editor/preview fit on window resize
   useEffect(() => {
     const handleResize = () => {
+      if (editorScaleMode === 'fit') {
+        updateEditorFit();
+      }
       if (previewScaleMode === 'fit') {
         updatePreviewFit();
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [previewScaleMode, updatePreviewFit]);
+  }, [editorScaleMode, previewScaleMode, updateEditorFit, updatePreviewFit]);
 
-  // Recalculate preview fit when switching to Result Preview tab on mobile
+  // Recalculate fit when switching tabs on mobile
   useEffect(() => {
+    if (activeTab === 'editor' && editorScaleMode === 'fit') {
+      const timer = setTimeout(() => {
+        updateEditorFit();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
     if (activeTab === 'result' && previewScaleMode === 'fit') {
       const timer = setTimeout(() => {
         updatePreviewFit();
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, previewScaleMode, updatePreviewFit]);
+  }, [activeTab, editorScaleMode, previewScaleMode, updateEditorFit, updatePreviewFit]);
+
+  // Recalculate fit when switching between split and maximized workspace layout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editorScaleMode === 'fit') {
+        updateEditorFit();
+      }
+      if (previewScaleMode === 'fit') {
+        updatePreviewFit();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [workspaceLayout, editorScaleMode, previewScaleMode, updateEditorFit, updatePreviewFit]);
 
   const effectivePreviewScale =
     previewScaleMode === 'sync'
@@ -488,24 +535,22 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   };
 
   const handleZoomOut = () => {
+    setEditorScaleMode('manual');
     setScale((prev) =>
       Math.max(MIN_ZOOM, Math.round((prev - ZOOM_STEP) * 100) / 100),
     );
   };
 
   const handleZoomIn = () => {
+    setEditorScaleMode('manual');
     setScale((prev) =>
       Math.min(MAX_ZOOM, Math.round((prev + ZOOM_STEP) * 100) / 100),
     );
   };
 
-  const handleFitToView = () => {
-    if (!viewportRef.current || !pageDimensions) {
-      setScale(DEFAULT_ZOOM);
-      return;
-    }
-    const fit = calculateFitScale(viewportRef.current, pageDimensions);
-    setScale(fit);
+  const handleEditorFitToView = () => {
+    setEditorScaleMode('fit');
+    updateEditorFit();
   };
 
   // Preview zoom handlers
@@ -538,6 +583,26 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const handleTogglePreviewSync = () => {
     setPreviewScaleMode((prev) => (prev === 'sync' ? 'fit' : 'sync'));
   };
+
+  const handleToggleMaximizeEditor = useCallback(() => {
+    setWorkspaceLayout((prev) => {
+      const next = prev === 'editor-maximized' ? 'split' : 'editor-maximized';
+      if (next === 'editor-maximized') {
+        setActiveTab('editor');
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleMaximizePreview = useCallback(() => {
+    setWorkspaceLayout((prev) => {
+      const next = prev === 'preview-maximized' ? 'split' : 'preview-maximized';
+      if (next === 'preview-maximized') {
+        setActiveTab('result');
+      }
+      return next;
+    });
+  }, []);
 
   const handleEditorKeyDown = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') {
@@ -579,9 +644,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       if (e.key === ' ' && !isInput && !e.repeat) {
         e.preventDefault();
         setIsSpacePressed(true);
-      } else if (e.key === 'Escape' && isCropping) {
-        e.preventDefault();
-        setIsCropping(false);
+      } else if (e.key === 'Escape') {
+        if (isCropping) {
+          e.preventDefault();
+          setIsCropping(false);
+        } else if (workspaceLayout !== 'split') {
+          e.preventDefault();
+          setWorkspaceLayout('split');
+        }
       }
     };
 
@@ -606,7 +676,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       window.removeEventListener('keyup', handleGlobalKeyUp);
       window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [isCropping]);
+  }, [isCropping, workspaceLayout]);
 
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Pan if Spacebar is pressed (left click) or if middle-mouse button (button 1) is clicked
@@ -818,10 +888,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       </div>
 
       {/* Main Dual-Pane Grid (EDITOR | RESULT) */}
-      <div className="workspace-panes">
+      <div
+        className={`workspace-panes ${
+          workspaceLayout === 'preview-maximized'
+            ? 'preview-maximized'
+            : workspaceLayout === 'editor-maximized'
+              ? 'editor-maximized'
+              : ''
+        }`.trim()}
+      >
         {/* Left Pane: Editor */}
         <section
-          className={`workspace-pane ${activeTab !== 'editor' ? 'hidden-on-mobile' : ''}`}
+          className={`workspace-pane editor-pane ${activeTab !== 'editor' ? 'hidden-on-mobile' : ''}`.trim()}
           aria-label="Editor Workspace"
           tabIndex={0}
           onKeyDown={handleEditorKeyDown}
@@ -829,13 +907,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           <div className="pane-header">
             <div className="pane-title-group">
               <span className="pane-title">Editor Workspace</span>
-              <Badge variant="primary" size="sm">
-                Main Document
-              </Badge>
+              {mainDoc ? (
+                <Badge variant="primary" size="sm">
+                  Main Document
+                </Badge>
+              ) : (
+                <Badge variant="neutral" size="sm">
+                  No Document
+                </Badge>
+              )}
               {mainDoc && (
                 <span className="pane-document-name" title={mainDoc.name}>
                   {mainDoc.name}
                 </span>
+              )}
+              {workspaceLayout === 'editor-maximized' && (
+                <Badge variant="neutral" size="sm">
+                  Maximized
+                </Badge>
               )}
             </div>
 
@@ -860,7 +949,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 title="Click to reset zoom to 100%"
                 aria-label={`Current zoom: ${Math.round(scale * 100)}%. Click to reset to 100%`}
                 disabled={!pdfDoc}
-                onClick={() => setScale(DEFAULT_ZOOM)}
+                onClick={() => {
+                  setEditorScaleMode('manual');
+                  setScale(DEFAULT_ZOOM);
+                }}
               >
                 {Math.round(scale * 100)}%
               </button>
@@ -875,14 +967,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 <ZoomIn size={14} />
               </Button>
               <Button
-                variant="ghost"
+                variant={editorScaleMode === 'fit' ? 'secondary' : 'ghost'}
                 size="sm"
                 aria-label="Fit to screen"
                 title="Fit page to view"
                 disabled={!pdfDoc}
-                onClick={handleFitToView}
+                onClick={handleEditorFitToView}
               >
                 <Maximize2 size={14} />
+                Fit
+              </Button>
+
+              <div className="toolbar-divider" />
+
+              <Button
+                variant={workspaceLayout === 'editor-maximized' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-label={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor' : 'Maximize editor'}
+                title={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor (Esc)' : 'Maximize editor (full workspace)'}
+                disabled={!mainDoc}
+                onClick={handleToggleMaximizeEditor}
+              >
+                {workspaceLayout === 'editor-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {workspaceLayout === 'editor-maximized' ? 'Restore' : 'Maximize'}
               </Button>
             </div>
           </div>
@@ -976,7 +1083,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 <ChevronLeft size={14} />
               </Button>
               <span className="page-indicator">
-                Page {safeCurrentPage} of {totalPages}
+                {mainDoc ? `Page ${safeCurrentPage} of ${totalPages}` : 'No document'}
               </span>
               <Button
                 variant="ghost"
@@ -995,14 +1102,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               <select
                 className="overlay-select"
                 value={activeOverlay?.overlayDocumentId ?? ''}
-                disabled={overlayDocOptions.length === 0}
+                disabled={!mainDoc || overlayDocOptions.length === 0}
                 aria-label="Select overlay document"
                 onChange={(e) => handleOverlayDocChange(e.target.value)}
               >
                 <option value="" disabled>
-                  {overlayDocOptions.length === 0
-                    ? 'Need 2+ documents'
-                    : '— Select Overlay —'}
+                  {!mainDoc
+                    ? 'Upload a document'
+                    : overlayDocOptions.length === 0
+                      ? 'Need 2+ documents'
+                      : '— Select Overlay —'}
                 </option>
                 {overlayDocOptions.map((doc) => (
                   <option key={doc.id} value={doc.id}>
@@ -1207,15 +1316,26 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
         {/* Right Pane: Result Preview */}
         <section
-          className={`workspace-pane ${activeTab !== 'result' ? 'hidden-on-mobile' : ''}`}
+          className={`workspace-pane result-pane ${activeTab !== 'result' ? 'hidden-on-mobile' : ''}`.trim()}
           aria-label="Result Preview"
         >
           <div className="pane-header">
             <div className="pane-title-group">
               <span className="pane-title">Result Preview</span>
-              <Badge variant="success" size="sm" withDot>
-                Live Composite
-              </Badge>
+              {mainDoc ? (
+                <Badge variant="success" size="sm" withDot>
+                  Live Composite
+                </Badge>
+              ) : (
+                <Badge variant="neutral" size="sm">
+                  Waiting for Document
+                </Badge>
+              )}
+              {workspaceLayout === 'preview-maximized' && (
+                <Badge variant="neutral" size="sm">
+                  Maximized
+                </Badge>
+              )}
             </div>
 
             <div
@@ -1223,36 +1343,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               role="toolbar"
               aria-label="Result preview view controls"
             >
-              {/* Synchronized Page Navigation in Preview */}
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!pdfDoc || safeCurrentPage <= 1}
-                aria-label="Previous preview page"
-                title="Previous page"
-                onClick={handlePrevPage}
-              >
-                <ChevronLeft size={14} />
-              </Button>
-              <span
-                className="page-indicator"
-                aria-label={`Preview page ${safeCurrentPage} of ${totalPages}`}
-              >
-                {safeCurrentPage} / {totalPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!pdfDoc || safeCurrentPage >= totalPages}
-                aria-label="Next preview page"
-                title="Next page"
-                onClick={handleNextPage}
-              >
-                <ChevronRight size={14} />
-              </Button>
-
-              <div className="toolbar-divider" />
-
               {/* Preview Zoom Controls */}
               <Button
                 variant="ghost"
@@ -1307,6 +1397,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               >
                 <Link2 size={14} />
                 Sync
+              </Button>
+
+              <div className="toolbar-divider" />
+
+              {/* Maximize / Restore Layout Toggle */}
+              <Button
+                variant={workspaceLayout === 'preview-maximized' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-label={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview' : 'Maximize preview'}
+                title={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview (Esc)' : 'Maximize preview (full workspace)'}
+                disabled={!mainDoc}
+                onClick={handleToggleMaximizePreview}
+              >
+                {workspaceLayout === 'preview-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {workspaceLayout === 'preview-maximized' ? 'Restore' : 'Maximize'}
               </Button>
 
               <div className="toolbar-divider" />
@@ -1399,32 +1504,63 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
           <div className="pane-footer">
             <div className="editor-control-group">
-              <span
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-secondary)',
-                }}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pdfDoc || safeCurrentPage <= 1}
+                aria-label="Previous preview page"
+                title="Previous page"
+                onClick={handlePrevPage}
               >
-                {mainDoc
-                  ? `Output: Page ${safeCurrentPage} • ${currentPageOverlays.length} ${
-                      currentPageOverlays.length === 1 ? 'Overlay' : 'Overlays'
-                    }`
-                  : 'Output: No Document'}
+                <ChevronLeft size={14} />
+              </Button>
+              <span
+                className="page-indicator"
+                aria-label={mainDoc ? `Preview page ${safeCurrentPage} of ${totalPages}` : 'No document'}
+              >
+                {mainDoc ? `${safeCurrentPage} / ${totalPages}` : '— / —'}
               </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!pdfDoc || safeCurrentPage >= totalPages}
+                aria-label="Next preview page"
+                title="Next page"
+                onClick={handleNextPage}
+              >
+                <ChevronRight size={14} />
+              </Button>
+              {mainDoc && (
+                <span
+                  style={{
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--text-secondary)',
+                    marginLeft: 'var(--space-2)',
+                  }}
+                >
+                  Output: Page {safeCurrentPage} • {currentPageOverlays.length}{' '}
+                  {currentPageOverlays.length === 1 ? 'Overlay' : 'Overlays'}
+                </span>
+              )}
             </div>
+
             <div className="editor-control-group">
               <span
+                className="pane-footer-text"
                 style={{
                   fontSize: 'var(--text-xs)',
                   color: 'var(--text-muted)',
                 }}
               >
-                {previewScaleMode === 'fit'
-                  ? 'Auto-Fit'
-                  : previewScaleMode === 'sync'
-                    ? 'Synced with Editor'
-                    : 'Custom Zoom'}{' '}
-                • 100% Client-Side
+                {mainDoc
+                  ? `${
+                      previewScaleMode === 'fit'
+                        ? 'Auto-Fit'
+                        : previewScaleMode === 'sync'
+                          ? 'Synced with Editor'
+                          : 'Custom Zoom'
+                    }${workspaceLayout === 'preview-maximized' ? ' • Maximized' : ''} • 100% Client-Side`
+                  : '100% Client-Side'}
               </span>
             </div>
           </div>

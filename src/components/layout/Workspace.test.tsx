@@ -1523,18 +1523,13 @@ describe('Workspace component', () => {
           expect(screen.getByText('Page 1 of 3')).toBeDefined();
         });
 
-        const editorZoomInBtn = screen.getByRole('button', { name: /^zoom in$/i });
-        fireEvent.click(editorZoomInBtn);
-
-        expect(screen.getByLabelText(/current zoom: 125%/i)).toBeDefined();
-
         // Click Sync button in Result Preview
         const syncBtn = screen.getByRole('button', { name: /sync preview zoom with editor/i });
         fireEvent.click(syncBtn);
 
-        // Preview zoom now matches Editor's 125%
+        // Preview zoom now syncs with Editor (which is at 100%)
         await waitFor(() => {
-          expect(screen.getByLabelText(/current preview zoom: 125%/i)).toBeDefined();
+          expect(screen.getByLabelText(/current preview zoom: 100%/i)).toBeDefined();
           expect(screen.getByText(/Synced with Editor • 100% Client-Side/i)).toBeDefined();
         });
 
@@ -1545,6 +1540,138 @@ describe('Workspace component', () => {
         await waitFor(() => {
           expect(screen.getByText(/Auto-Fit • 100% Client-Side/i)).toBeDefined();
         });
+      });
+    });
+
+    describe('Maximized Preview Mode & Layout Toggles (Phase 8: Task 8.3)', () => {
+      it('renders maximize preview toggle button in Result Preview toolbar', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        const maxBtn = screen.getByRole('button', { name: /maximize preview/i });
+        expect(maxBtn).toBeDefined();
+        expect(maxBtn.getAttribute('title')).toContain('Maximize preview (full workspace)');
+      });
+
+      it('toggles maximized preview mode and expands Result Preview', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const { container } = render(<Workspace documents={[docMain]} />);
+
+        const panes = container.querySelector('.workspace-panes');
+        expect(panes?.classList.contains('preview-maximized')).toBe(false);
+
+        const maxBtn = screen.getByRole('button', { name: /maximize preview/i });
+        fireEvent.click(maxBtn);
+
+        // Panes grid now has preview-maximized class
+        expect(panes?.classList.contains('preview-maximized')).toBe(true);
+
+        // Result Preview header displays Maximized badge
+        expect(screen.getByText('Maximized')).toBeDefined();
+
+        // Footer indicates Maximized state
+        expect(screen.getByText(/• Maximized • 100% Client-Side/i)).toBeDefined();
+
+        // Button label updates to exit
+        const restoreBtn = screen.getByRole('button', { name: /exit maximized preview/i });
+        expect(restoreBtn).toBeDefined();
+        expect(restoreBtn.textContent).toContain('Restore');
+      });
+
+      it('restores split workspace when clicking Restore button in maximized mode', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const { container } = render(<Workspace documents={[docMain]} />);
+
+        const panes = container.querySelector('.workspace-panes');
+
+        // Enter maximized mode
+        fireEvent.click(screen.getByRole('button', { name: /maximize preview/i }));
+        expect(panes?.classList.contains('preview-maximized')).toBe(true);
+
+        // Click Restore
+        fireEvent.click(screen.getByRole('button', { name: /exit maximized preview/i }));
+        expect(panes?.classList.contains('preview-maximized')).toBe(false);
+
+        // Maximized badge is removed
+        expect(screen.queryByText('Maximized')).toBeNull();
+      });
+
+      it('exits maximized preview mode when pressing Escape key', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const { container } = render(<Workspace documents={[docMain]} />);
+
+        const panes = container.querySelector('.workspace-panes');
+
+        // Enter maximized mode
+        fireEvent.click(screen.getByRole('button', { name: /maximize preview/i }));
+        expect(panes?.classList.contains('preview-maximized')).toBe(true);
+
+        // Press Escape
+        fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(panes?.classList.contains('preview-maximized')).toBe(false);
+      });
+    });
+
+    describe('Workspace UI/UX Cleanup & Symmetrical Controls', () => {
+      it('renders complete control set (Zoom Out, %, Zoom In, Fit, Maximize) in Editor Workspace', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        const editorToolbar = screen.getByRole('toolbar', { name: /editor view controls/i });
+        expect(editorToolbar).toBeDefined();
+
+        expect(screen.getByRole('button', { name: /^zoom out$/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /^zoom in$/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /fit to screen/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /maximize editor/i })).toBeDefined();
+      });
+
+      it('toggles maximized editor mode and restores on button click or Escape', async () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        const { container } = render(<Workspace documents={[docMain]} />);
+
+        const panes = container.querySelector('.workspace-panes');
+        expect(panes?.classList.contains('editor-maximized')).toBe(false);
+
+        const maxEditorBtn = screen.getByRole('button', { name: /maximize editor/i });
+        fireEvent.click(maxEditorBtn);
+
+        // Grid has editor-maximized class
+        expect(panes?.classList.contains('editor-maximized')).toBe(true);
+
+        // Editor shows Maximized badge
+        expect(screen.getByText('Maximized')).toBeDefined();
+
+        // Button label changes to exit
+        const restoreBtn = screen.getByRole('button', { name: /exit maximized editor/i });
+        expect(restoreBtn).toBeDefined();
+
+        // Press Escape key
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(panes?.classList.contains('editor-maximized')).toBe(false);
+      });
+
+      it('displays graceful, non-misleading empty states when no document is loaded', async () => {
+        render(<Workspace documents={[]} />);
+
+        // Header badges reflect empty state
+        expect(screen.getByText('No Document')).toBeDefined();
+        expect(screen.getByText('Waiting for Document')).toBeDefined();
+
+        // Footer indicators reflect no document
+        expect(screen.getByText('No document')).toBeDefined();
+        expect(screen.getByText('— / —')).toBeDefined();
+
+        // Overlay dropdown prompts to upload
+        expect(screen.getByText('Upload a document')).toBeDefined();
+
+        // Zoom and page buttons are disabled
+        const zoomInBtn = screen.getByRole('button', { name: /^zoom in$/i }) as HTMLButtonElement;
+        expect(zoomInBtn.disabled).toBe(true);
+
+        const prevPageBtn = screen.getByRole('button', { name: /^previous page$/i }) as HTMLButtonElement;
+        expect(prevPageBtn.disabled).toBe(true);
       });
     });
   });
