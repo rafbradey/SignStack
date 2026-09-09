@@ -31,6 +31,7 @@ import {
 import { clamp, calculateOverlayViewportPosition } from '@/utils';
 import { DocumentCard } from './DocumentCard';
 import { PdfPageCanvas, PdfOverlayLayer } from '@/components/pdf';
+import { ErrorBoundary } from '@/components/common';
 import {
   loadPdfDocument,
   generatePdf,
@@ -1076,40 +1077,45 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </Alert>
               </div>
             ) : (
-              <PdfPageCanvas
-                document={pdfDoc}
-                pageNumber={safeCurrentPage}
-                scale={scale}
-                onDimensionsChange={handleDimensionsChange}
+              <ErrorBoundary
+                title="Page Rendering Error"
+                message="An unexpected error occurred while rendering this page."
               >
-                {currentPageOverlays.map((overlay) => {
-                  const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
-                  const renderPos = pageDimensions
-                    ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
-                    : { x: 0, y: 0 };
+                <PdfPageCanvas
+                  document={pdfDoc}
+                  pageNumber={safeCurrentPage}
+                  scale={scale}
+                  onDimensionsChange={handleDimensionsChange}
+                >
+                  {currentPageOverlays.map((overlay) => {
+                    const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
+                    const renderPos = pageDimensions
+                      ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
+                      : { x: 0, y: 0 };
 
-                  return (
-                    <PdfOverlayLayer
-                      key={overlay.id}
-                      document={proxy}
-                      pageNumber={overlay.overlayPageNumber}
-                      scale={scale * overlay.scale}
-                      opacity={overlay.opacity}
-                      position={renderPos}
-                      normalizedPosition={overlay.position}
-                      baseDimensions={pageDimensions ?? undefined}
-                      rotation={overlay.rotation}
-                      cropRect={overlay.cropRect}
-                      isCropping={isCropping && overlay.id === activeOverlay?.id}
-                      isDraggable={!isCropping}
-                      isSelected={overlay.id === activeOverlay?.id}
-                      onCropChange={handleCropChange}
-                      onPositionChange={handleOverlayPositionChange}
-                      onDelete={() => handleRemoveOverlay(overlay.id)}
-                    />
-                  );
-                })}
-              </PdfPageCanvas>
+                    return (
+                      <PdfOverlayLayer
+                        key={overlay.id}
+                        document={proxy}
+                        pageNumber={overlay.overlayPageNumber}
+                        scale={scale * overlay.scale}
+                        opacity={overlay.opacity}
+                        position={renderPos}
+                        normalizedPosition={overlay.position}
+                        baseDimensions={pageDimensions ?? undefined}
+                        rotation={overlay.rotation}
+                        cropRect={overlay.cropRect}
+                        isCropping={isCropping && overlay.id === activeOverlay?.id}
+                        isDraggable={!isCropping}
+                        isSelected={overlay.id === activeOverlay?.id}
+                        onCropChange={handleCropChange}
+                        onPositionChange={handleOverlayPositionChange}
+                        onDelete={() => handleRemoveOverlay(overlay.id)}
+                      />
+                    );
+                  })}
+                </PdfPageCanvas>
+              </ErrorBoundary>
             )}
           </div>
 
@@ -1535,39 +1541,44 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </Alert>
               </div>
             ) : (
-              <PdfPageCanvas
-                document={pdfDoc}
-                pageNumber={safeCurrentPage}
-                scale={effectivePreviewScale}
-                ariaLabel={`Result preview page ${safeCurrentPage}`}
-                className="result-preview-canvas"
+              <ErrorBoundary
+                title="Preview Rendering Error"
+                message="An unexpected error occurred while rendering the composite preview."
               >
-                {currentPageOverlays.map((overlay) => {
-                  const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
-                  const renderPos = pageDimensions
-                    ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
-                    : { x: 0, y: 0 };
+                <PdfPageCanvas
+                  document={pdfDoc}
+                  pageNumber={safeCurrentPage}
+                  scale={effectivePreviewScale}
+                  ariaLabel={`Result preview page ${safeCurrentPage}`}
+                  className="result-preview-canvas"
+                >
+                  {currentPageOverlays.map((overlay) => {
+                    const proxy = pdfDocsMap[overlay.overlayDocumentId] ?? null;
+                    const renderPos = pageDimensions
+                      ? calculateOverlayViewportPosition(overlay.position, pageDimensions)
+                      : { x: 0, y: 0 };
 
-                  return (
-                    <PdfOverlayLayer
-                      key={`preview-${overlay.id}`}
-                      document={proxy}
-                      pageNumber={overlay.overlayPageNumber}
-                      scale={effectivePreviewScale * overlay.scale}
-                      opacity={overlay.opacity}
-                      position={renderPos}
-                      normalizedPosition={overlay.position}
-                      baseDimensions={pageDimensions ?? undefined}
-                      rotation={overlay.rotation}
-                      cropRect={overlay.cropRect}
-                      isCropping={false}
-                      isDraggable={false}
-                      isSelected={false}
-                      ariaLabel={`Result preview overlay page ${overlay.overlayPageNumber}`}
-                    />
-                  );
-                })}
-              </PdfPageCanvas>
+                    return (
+                      <PdfOverlayLayer
+                        key={`preview-${overlay.id}`}
+                        document={proxy}
+                        pageNumber={overlay.overlayPageNumber}
+                        scale={effectivePreviewScale * overlay.scale}
+                        opacity={overlay.opacity}
+                        position={renderPos}
+                        normalizedPosition={overlay.position}
+                        baseDimensions={pageDimensions ?? undefined}
+                        rotation={overlay.rotation}
+                        cropRect={overlay.cropRect}
+                        isCropping={false}
+                        isDraggable={false}
+                        isSelected={false}
+                        ariaLabel={`Result preview overlay page ${overlay.overlayPageNumber}`}
+                      />
+                    );
+                  })}
+                </PdfPageCanvas>
+              </ErrorBoundary>
             )}
           </div>
 

@@ -1,5 +1,6 @@
 import { Header, Workspace } from '@/components/layout';
 import { Alert } from '@/components/ui';
+import { ErrorBoundary } from '@/components/common';
 import { useDocuments } from '@/hooks';
 
 export default function App() {
@@ -49,14 +50,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Dual-Pane Workspace (EDITOR | RESULT) */}
-      <Workspace
-        documents={documents}
-        addFiles={addFiles}
-        onRemoveDocument={removeDocument}
-        onMoveDocument={moveDocument}
-        onReorderDocuments={reorderDocuments}
-      />
+      {/* Dual-Pane Workspace (EDITOR | RESULT) wrapped in Error Boundary */}
+      <ErrorBoundary
+        title="Workspace Error"
+        message="An unexpected rendering issue occurred in the workspace. You can reset and continue working."
+      >
+        <Workspace
+          documents={documents}
+          addFiles={addFiles}
+          onRemoveDocument={removeDocument}
+          onMoveDocument={moveDocument}
+          onReorderDocuments={reorderDocuments}
+        />
+      </ErrorBoundary>
     </div>
   );
 }
