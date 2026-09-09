@@ -273,6 +273,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     };
   }, [currentPageOverlays, documents, pdfDocsMap]);
 
+  // Prune entries in pdfDocsMap during render when documents are removed to free state references
+  const activeDocIds = new Set(documents.map((d) => d.id));
+  const hasOrphanPdfDocs = Object.keys(pdfDocsMap).some(
+    (id) => !activeDocIds.has(id),
+  );
+  if (hasOrphanPdfDocs) {
+    const pruned: Record<string, PDFDocumentProxy> = {};
+    for (const [id, proxy] of Object.entries(pdfDocsMap)) {
+      if (activeDocIds.has(id)) {
+        pruned[id] = proxy;
+      }
+    }
+    setPdfDocsMap(pruned);
+  }
+
   const activeOverlayPdf = activeOverlay
     ? pdfDocsMap[activeOverlay.overlayDocumentId]
     : null;

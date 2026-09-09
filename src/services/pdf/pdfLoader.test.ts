@@ -5,6 +5,8 @@ import {
   destroyPdfDocument,
   clearPdfCache,
   getPdfPageCount,
+  getDocumentCacheSize,
+  MAX_DOCUMENT_CACHE_SIZE,
 } from './pdfLoader';
 import { pdfjsLib, PDFDocumentProxy } from './pdfConfig';
 
@@ -107,6 +109,46 @@ describe('pdfLoader service', () => {
     expect(docB.cleanup).toHaveBeenCalled();
     expect(getCachedPdfDocument('a')).toBeUndefined();
     expect(getCachedPdfDocument('b')).toBeUndefined();
+    expect(getDocumentCacheSize()).toBe(0);
+  });
+
+  it('evicts the least recently used document when exceeding MAX_DOCUMENT_CACHE_SIZE', async () => {
+    // Load MAX_DOCUMENT_CACHE_SIZE documents
+    const docs: PDFDocumentProxy[] = [];
+    for (let i = 0; i < MAX_DOCUMENT_CACHE_SIZE; i++) {
+      const mockDoc = createMockPdfDocument(i + 1);
+      docs.push(mockDoc);
+      vi.mocked(pdfjsLib.getDocument).mockReturnValueOnce({
+        promise: Promise.resolve(mockDoc),
+      } as unknown as LoadingTaskReturn);
+
+      const file = new File(['%PDF-1.4'], `doc-${i}.pdf`, { type: 'application/pdf' });
+      await loadPdfDocument(file, `doc-${i}`);
+    }
+
+    expect(getDocumentCacheSize()).toBe(MAX_DOCUMENT_CACHE_SIZE);
+    expect(getCachedPdfDocument('doc-0')).toBe(docs[0]);
+
+    // Access doc-0 to mark it recently used (now doc-1 is the oldest)
+    getCachedPdfDocument('doc-0');
+
+    // Add 11th document
+    const eleventhDoc = createMockPdfDocument(11);
+    vi.mocked(pdfjsLib.getDocument).mockReturnValueOnce({
+      promise: Promise.resolve(eleventhDoc),
+    } as unknown as LoadingTaskReturn);
+
+    const file11 = new File(['%PDF-1.4'], 'doc-10.pdf', { type: 'application/pdf' });
+    await loadPdfDocument(file11, 'doc-10');
+
+    // Total size should stay at MAX_DOCUMENT_CACHE_SIZE
+    expect(getDocumentCacheSize()).toBe(MAX_DOCUMENT_CACHE_SIZE);
+    // doc-1 should have been evicted and cleaned up
+    expect(docs[1].cleanup).toHaveBeenCalled();
+    expect(getCachedPdfDocument('doc-1')).toBeUndefined();
+    // doc-0 and doc-10 should still be cached
+    expect(getCachedPdfDocument('doc-0')).toBe(docs[0]);
+    expect(getCachedPdfDocument('doc-10')).toBe(eleventhDoc);
   });
 
   it('getPdfPageCount returns the document page count', async () => {

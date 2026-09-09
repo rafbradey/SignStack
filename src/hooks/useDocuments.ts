@@ -9,6 +9,7 @@ import {
   createUploadedDocument,
   resolveUniqueFilename,
 } from '@/utils';
+import { destroyPdfDocument, clearPdfCache } from '@/services/pdf';
 
 /**
  * Immutably moves an item within an array from startIndex to endIndex.
@@ -138,6 +139,7 @@ export function useDocuments(): UseDocumentsReturn {
 
   const removeDocument = useCallback((id: string) => {
     setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+    void destroyPdfDocument(id);
   }, []);
 
   const reorderDocuments = useCallback(
@@ -160,6 +162,7 @@ export function useDocuments(): UseDocumentsReturn {
 
   const clearDocuments = useCallback(() => {
     setDocuments([]);
+    void clearPdfCache();
   }, []);
 
   const clearErrors = useCallback(() => {

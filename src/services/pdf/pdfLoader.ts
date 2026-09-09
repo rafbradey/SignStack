@@ -2,6 +2,12 @@ import { pdfjsLib, PDFDocumentProxy } from './pdfConfig';
 import { formatPdfErrorMessage } from '@/utils/pdfErrorUtils';
 
 /**
+ * Maximum number of PDFDocumentProxy instances to keep concurrently in client memory.
+ * Older documents are evicted in LRU order to prevent browser memory exhaustion.
+ */
+export const MAX_DOCUMENT_CACHE_SIZE = 10;
+
+/**
  * In-memory cache of parsed PDF documents keyed by document identifier.
  *
  * Prevents redundant file reading and parsing when switching pages
@@ -24,7 +30,11 @@ export async function loadPdfDocument(
   docId?: string,
 ): Promise<PDFDocumentProxy> {
   if (docId && documentCache.has(docId)) {
-    return documentCache.get(docId)!;
+    // Refresh LRU order by re-inserting at the end of the Map
+    const cached = documentCache.get(docId)!;
+    documentCache.delete(docId);
+    documentCache.set(docId, cached);
+    return cached;
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -44,6 +54,13 @@ export async function loadPdfDocument(
   }
 
   if (docId) {
+    // Evict oldest cached document if capacity reached
+    if (documentCache.size >= MAX_DOCUMENT_CACHE_SIZE && !documentCache.has(docId)) {
+      const oldestDocId = documentCache.keys().next().value;
+      if (oldestDocId) {
+        void destroyPdfDocument(oldestDocId);
+      }
+    }
     documentCache.set(docId, pdfDoc);
   }
 
@@ -56,7 +73,20 @@ export async function loadPdfDocument(
 export function getCachedPdfDocument(
   docId: string,
 ): PDFDocumentProxy | undefined {
-  return documentCache.get(docId);
+  const cached = documentCache.get(docId);
+  if (cached) {
+    // Refresh LRU position on access
+    documentCache.delete(docId);
+    documentCache.set(docId, cached);
+  }
+  return cached;
+}
+
+/**
+ * Returns the current number of cached PDF documents in memory.
+ */
+export function getDocumentCacheSize(): number {
+  return documentCache.size;
 }
 
 /**

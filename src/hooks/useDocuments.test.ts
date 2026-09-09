@@ -1,6 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useDocuments, arrayMove } from './useDocuments';
+import { destroyPdfDocument, clearPdfCache } from '@/services/pdf';
+
+vi.mock('@/services/pdf', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/pdf')>();
+  return {
+    ...actual,
+    destroyPdfDocument: vi.fn(),
+    clearPdfCache: vi.fn(),
+  };
+});
 
 function createMockPdf(name: string, content = '%PDF-1.4 sample'): File {
   return new File([content], name, { type: 'application/pdf' });
@@ -166,6 +176,7 @@ describe('useDocuments', () => {
 
     expect(result.current.documents).toHaveLength(1);
     expect(result.current.documents[0].name).toBe('second.pdf');
+    expect(destroyPdfDocument).toHaveBeenCalledWith(idToRemove);
   });
 
   it('reorders documents using start and end indices', async () => {
@@ -260,6 +271,7 @@ describe('useDocuments', () => {
     });
 
     expect(result.current.documents).toEqual([]);
+    expect(clearPdfCache).toHaveBeenCalled();
   });
 
   it('clears and dismisses validation errors', async () => {
