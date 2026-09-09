@@ -263,8 +263,8 @@
 /* Narrow mobile screens (< 640px) */
 @media (max-width: 640px) {
   .doc-card {
-    width: 240px;
-    min-width: 240px;
+    width: min(250px, calc(100vw - 80px));
+    min-width: min(250px, calc(100vw - 80px));
     padding: var(--space-1) var(--space-2);
     gap: var(--space-1);
     height: 46px;

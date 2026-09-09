@@ -1010,18 +1010,40 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               </button>
             </>
           ) : !isProcessing ? (
-            <div className="document-tray-empty-zone">
+            <div
+              className="document-tray-empty-zone"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                fileInputRef.current?.click();
+                if (onUploadClick) onUploadClick();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                  if (onUploadClick) onUploadClick();
+                }
+              }}
+              aria-label="Upload PDF documents. Supports PDF up to 50MB."
+            >
               <Upload
                 size={14}
                 className="document-tray-empty-icon"
                 aria-hidden="true"
               />
-              <span className="document-tray-empty-hint">
-                No documents in queue. Your uploaded files will appear here.
-              </span>
-              <span className="document-tray-empty-subtext">
-                Supports PDF up to 50MB
-              </span>
+              <div className="document-tray-empty-desktop-text">
+                <span className="document-tray-empty-hint">
+                  No documents in queue. Your uploaded files will appear here.
+                </span>
+                <span className="document-tray-empty-subtext">
+                  Supports PDF up to 50MB
+                </span>
+              </div>
+              <div className="document-tray-empty-mobile-action">
+                <span className="mobile-upload-btn-label">Upload PDF</span>
+                <span className="mobile-upload-btn-subtext">Max 50MB</span>
+              </div>
             </div>
           ) : (
             <div
@@ -1133,70 +1155,72 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               )}
             </div>
 
-            <div
-              className="pane-toolbar"
-              role="toolbar"
-              aria-label="Editor view controls"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Zoom out"
-                title="Zoom out"
-                disabled={!pdfDoc || scale <= MIN_ZOOM}
-                onClick={handleZoomOut}
+            <div className="pane-header-controls">
+              <div
+                className="pane-toolbar"
+                role="toolbar"
+                aria-label="Editor view controls"
               >
-                <ZoomOut size={14} />
-              </Button>
-              <button
-                type="button"
-                className="zoom-display-btn"
-                title="Click to reset zoom to 100%"
-                aria-label={`Current zoom: ${Math.round(scale * 100)}%. Click to reset to 100%`}
-                disabled={!pdfDoc}
-                onClick={() => {
-                  setEditorScaleMode('manual');
-                  setScale(DEFAULT_ZOOM);
-                }}
-              >
-                {Math.round(scale * 100)}%
-              </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Zoom in"
-                title="Zoom in"
-                disabled={!pdfDoc || scale >= MAX_ZOOM}
-                onClick={handleZoomIn}
-              >
-                <ZoomIn size={14} />
-              </Button>
-              <Button
-                variant={editorScaleMode === 'fit' ? 'secondary' : 'ghost'}
-                size="sm"
-                aria-label="Fit to screen"
-                title="Fit page to view"
-                disabled={!pdfDoc}
-                onClick={handleEditorFitToView}
-              >
-                <Maximize2 size={14} />
-                Fit
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                  disabled={!pdfDoc || scale <= MIN_ZOOM}
+                  onClick={handleZoomOut}
+                >
+                  <ZoomOut size={14} />
+                </Button>
+                <button
+                  type="button"
+                  className="zoom-display-btn"
+                  title="Click to reset zoom to 100%"
+                  aria-label={`Current zoom: ${Math.round(scale * 100)}%. Click to reset to 100%`}
+                  disabled={!pdfDoc}
+                  onClick={() => {
+                    setEditorScaleMode('manual');
+                    setScale(DEFAULT_ZOOM);
+                  }}
+                >
+                  {Math.round(scale * 100)}%
+                </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Zoom in"
+                  title="Zoom in"
+                  disabled={!pdfDoc || scale >= MAX_ZOOM}
+                  onClick={handleZoomIn}
+                >
+                  <ZoomIn size={14} />
+                </Button>
+                <Button
+                  variant={editorScaleMode === 'fit' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  aria-label="Fit to screen"
+                  title="Fit page to view"
+                  disabled={!pdfDoc}
+                  onClick={handleEditorFitToView}
+                >
+                  <Maximize2 size={14} />
+                  Fit
+                </Button>
 
-              <div className="toolbar-divider desktop-only-action" />
+                <div className="toolbar-divider desktop-only-action" />
 
-              <Button
-                variant={workspaceLayout === 'editor-maximized' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="desktop-only-action"
-                aria-label={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor' : 'Maximize editor'}
-                title={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor (Esc)' : 'Maximize editor (full workspace)'}
-                disabled={!mainDoc}
-                onClick={handleToggleMaximizeEditor}
-              >
-                {workspaceLayout === 'editor-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                {workspaceLayout === 'editor-maximized' ? 'Restore' : 'Maximize'}
-              </Button>
+                <Button
+                  variant={workspaceLayout === 'editor-maximized' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="desktop-only-action"
+                  aria-label={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor' : 'Maximize editor'}
+                  title={workspaceLayout === 'editor-maximized' ? 'Exit maximized editor (Esc)' : 'Maximize editor (full workspace)'}
+                  disabled={!mainDoc}
+                  onClick={handleToggleMaximizeEditor}
+                >
+                  {workspaceLayout === 'editor-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  {workspaceLayout === 'editor-maximized' ? 'Restore' : 'Maximize'}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1672,102 +1696,107 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               )}
             </div>
 
-            <div
-              className="pane-toolbar"
-              role="toolbar"
-              aria-label="Result preview view controls"
-            >
-              {/* Preview Zoom Controls */}
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Preview zoom out"
-                title="Zoom out preview"
-                disabled={!pdfDoc || effectivePreviewScale <= MIN_ZOOM}
-                onClick={handlePreviewZoomOut}
+            <div className="pane-header-controls">
+              <div
+                className="pane-toolbar"
+                role="toolbar"
+                aria-label="Result preview view controls"
               >
-                <ZoomOut size={14} />
-              </Button>
-              <button
-                type="button"
-                className="zoom-display-btn"
-                title="Click to reset preview zoom to 100%"
-                aria-label={`Current preview zoom: ${Math.round(effectivePreviewScale * 100)}%. Click to reset to 100%`}
-                disabled={!pdfDoc}
-                onClick={handlePreviewResetZoom}
-              >
-                {Math.round(effectivePreviewScale * 100)}%
-              </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Preview zoom in"
-                title="Zoom in preview"
-                disabled={!pdfDoc || effectivePreviewScale >= MAX_ZOOM}
-                onClick={handlePreviewZoomIn}
-              >
-                <ZoomIn size={14} />
-              </Button>
+                {/* Preview Zoom Controls */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Preview zoom out"
+                  title="Zoom out preview"
+                  disabled={!pdfDoc || effectivePreviewScale <= MIN_ZOOM}
+                  onClick={handlePreviewZoomOut}
+                >
+                  <ZoomOut size={14} />
+                </Button>
+                <button
+                  type="button"
+                  className="zoom-display-btn"
+                  title="Click to reset preview zoom to 100%"
+                  aria-label={`Current preview zoom: ${Math.round(effectivePreviewScale * 100)}%. Click to reset to 100%`}
+                  disabled={!pdfDoc}
+                  onClick={handlePreviewResetZoom}
+                >
+                  {Math.round(effectivePreviewScale * 100)}%
+                </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Preview zoom in"
+                  title="Zoom in preview"
+                  disabled={!pdfDoc || effectivePreviewScale >= MAX_ZOOM}
+                  onClick={handlePreviewZoomIn}
+                >
+                  <ZoomIn size={14} />
+                </Button>
 
-              {/* Fit & Sync Mode Toggles */}
-              <Button
-                variant={previewScaleMode === 'fit' ? 'secondary' : 'ghost'}
-                size="sm"
-                aria-label="Fit preview to screen"
-                title="Fit preview page to view"
-                disabled={!pdfDoc}
-                onClick={handlePreviewFitToView}
-              >
-                <Maximize2 size={14} />
-                Fit
-              </Button>
-              <Button
-                variant={previewScaleMode === 'sync' ? 'secondary' : 'ghost'}
-                size="sm"
-                aria-label="Sync preview zoom with editor"
-                title="Sync preview zoom with editor zoom"
-                disabled={!pdfDoc}
-                onClick={handleTogglePreviewSync}
-              >
-                <Link2 size={14} />
-                Sync
-              </Button>
+                {/* Fit & Sync Mode Toggles */}
+                <Button
+                  variant={previewScaleMode === 'fit' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  aria-label="Fit preview to screen"
+                  title="Fit preview page to view"
+                  disabled={!pdfDoc}
+                  onClick={handlePreviewFitToView}
+                >
+                  <Maximize2 size={14} />
+                  Fit
+                </Button>
+                <Button
+                  variant={previewScaleMode === 'sync' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  aria-label="Sync preview zoom with editor"
+                  title="Sync preview zoom with editor zoom"
+                  disabled={!pdfDoc}
+                  onClick={handleTogglePreviewSync}
+                >
+                  <Link2 size={14} />
+                  Sync
+                </Button>
 
-              <div className="toolbar-divider desktop-only-action" />
+                <div className="toolbar-divider desktop-only-action" />
 
-              {/* Maximize / Restore Layout Toggle */}
-              <Button
-                variant={workspaceLayout === 'preview-maximized' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="desktop-only-action"
-                aria-label={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview' : 'Maximize preview'}
-                title={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview (Esc)' : 'Maximize preview (full workspace)'}
-                disabled={!mainDoc}
-                onClick={handleToggleMaximizePreview}
-              >
-                {workspaceLayout === 'preview-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                {workspaceLayout === 'preview-maximized' ? 'Restore' : 'Maximize'}
-              </Button>
+                {/* Maximize / Restore Layout Toggle */}
+                <Button
+                  variant={workspaceLayout === 'preview-maximized' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="desktop-only-action"
+                  aria-label={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview' : 'Maximize preview'}
+                  title={workspaceLayout === 'preview-maximized' ? 'Exit maximized preview (Esc)' : 'Maximize preview (full workspace)'}
+                  disabled={!mainDoc}
+                  onClick={handleToggleMaximizePreview}
+                >
+                  {workspaceLayout === 'preview-maximized' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  {workspaceLayout === 'preview-maximized' ? 'Restore' : 'Maximize'}
+                </Button>
+              </div>
 
-              <div className="toolbar-divider" />
+              <div className="toolbar-divider pane-action-divider" />
 
-              <Button
-                variant="primary"
-                size="sm"
-                isLoading={isGeneratingPdf}
-                leftIcon={<Download size={14} />}
-                disabled={!mainDoc}
-                title={
-                  !mainDoc
-                    ? 'Upload a document to download PDF'
-                    : isGeneratingPdf
-                      ? 'Generating PDF...'
-                      : 'Download PDF with embedded overlays'
-                }
-                onClick={handleDownloadPdf}
-              >
-                {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
-              </Button>
+              <div className="pane-primary-action">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  isLoading={isGeneratingPdf}
+                  leftIcon={<Download size={14} />}
+                  disabled={!mainDoc}
+                  className="pane-download-btn"
+                  title={
+                    !mainDoc
+                      ? 'Upload a document to download PDF'
+                      : isGeneratingPdf
+                        ? 'Generating PDF...'
+                        : 'Download PDF with embedded overlays'
+                  }
+                  onClick={handleDownloadPdf}
+                >
+                  {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+                </Button>
+              </div>
             </div>
           </div>
 

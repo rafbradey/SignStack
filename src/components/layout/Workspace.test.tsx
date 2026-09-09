@@ -2027,6 +2027,49 @@ describe('Workspace component', () => {
         expect(controlsPanel?.classList.contains('is-mobile-open')).toBe(false);
       });
     });
+
+    describe('Mobile Workspace Controls & Document Queue Redesign', () => {
+      it('renders accessible mobile upload trigger in empty queue and fires onUploadClick', () => {
+        const handleUploadClick = vi.fn();
+        render(<Workspace onUploadClick={handleUploadClick} />);
+
+        const emptyZone = screen.getByRole('button', {
+          name: /upload pdf documents\. supports pdf up to 50mb/i,
+        });
+        expect(emptyZone).toBeDefined();
+        expect(screen.getByText('Upload PDF')).toBeDefined();
+        expect(screen.getByText('Max 50MB')).toBeDefined();
+
+        fireEvent.click(emptyZone);
+        expect(handleUploadClick).toHaveBeenCalledTimes(1);
+      });
+
+      it('structures Result Preview header with separate toolbar and primary action container', () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        const downloadBtn = screen.getByRole('button', { name: /download pdf/i });
+        expect(downloadBtn).toBeDefined();
+        expect(downloadBtn.closest('.pane-primary-action')).not.toBeNull();
+
+        const previewToolbar = screen.getByRole('toolbar', {
+          name: /result preview view controls/i,
+        });
+        expect(previewToolbar).toBeDefined();
+        expect(previewToolbar.closest('.pane-header-controls')).not.toBeNull();
+      });
+
+      it('structures Editor Workspace header with pane-header-controls container', () => {
+        const docMain = makeDoc({ id: 'doc-main', name: 'main.pdf' });
+        render(<Workspace documents={[docMain]} />);
+
+        const editorToolbar = screen.getByRole('toolbar', {
+          name: /editor view controls/i,
+        });
+        expect(editorToolbar).toBeDefined();
+        expect(editorToolbar.closest('.pane-header-controls')).not.toBeNull();
+      });
+    });
   });
 });
 
