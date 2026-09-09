@@ -285,17 +285,19 @@ A production-ready application. (Completed)
 
 ---
 
-# Phase 16 — Deployment
-
-Only after production preparation is complete.
+# Phase 16 — Deployment [COMPLETED]
 
 Goals:
 
-- choose hosting
-- configure deployment
-- configure production environment
-- deploy
-- verify production behavior
+- choose hosting (selected Vercel for instant static edge hosting, HTTP/2, and zero-config Git integration)
+- configure deployment (created `vercel.json` with SPA rewrites, security headers, and immutable asset caching)
+- configure production environment (verified Vite production build with code splitting)
+- deploy guide (added GitHub and Vercel CLI deployment workflows in README.md)
+- verify production behavior (build, test, lint, and preview validated)
+
+Deliverable:
+
+Production deployment configuration and deployment guide completed. (Completed)
 
 ---
 

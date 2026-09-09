@@ -80,6 +80,29 @@ npm install
 
 ---
 
+### Deployment
+
+SignStack is 100% client-side and pre-configured for instant deployment on [Vercel](https://vercel.com) with [`vercel.json`](vercel.json):
+
+#### Option A: Deploy via GitHub (Recommended)
+1. Ensure your latest changes are pushed: `git push origin master`
+2. Go to [vercel.com](https://vercel.com) and sign in.
+3. Click **Add New... → Project**.
+4. Import your **SignStack** repository.
+5. Vercel automatically detects the **Vite** framework preset, `dist` output folder, and `npm run build` command.
+6. Click **Deploy**.
+
+#### Option B: Deploy via Vercel CLI
+```bash
+npx vercel
+```
+For production release:
+```bash
+npx vercel --prod
+```
+
+---
+
 ## Current Status & Roadmap
 
 Development is phased incrementally according to [.agents/docs/ROADMAP.md](.agents/docs/ROADMAP.md):
@@ -99,4 +122,4 @@ Development is phased incrementally according to [.agents/docs/ROADMAP.md](.agen
 - [x] **Phase 13: Architecture Review** (Component factorization, state abstraction, ADR documentation)
 - [x] **Phase 14: Backend Evaluation** (Privacy-first analysis, local-first roadmap, Supabase evaluation)
 - [x] **Phase 15: Production Preparation** (Security audit, bundle optimization, accessibility verification)
-- [ ] **Phase 16: Deployment** (Production deployment & verification)
+- [x] **Phase 16: Deployment** (Vercel deployment configuration, vercel.json, immutable asset caching)
