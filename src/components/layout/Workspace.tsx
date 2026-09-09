@@ -91,7 +91,9 @@ export interface WorkspaceProps {
   onMoveDocument?: (id: string, direction: 'up' | 'down') => void;
   /** Function to add files to document state */
   addFiles?: (files: File[] | FileList) => Promise<AddFilesResult>;
-  /** Optional controlled ID for the main document */
+  /** Whether files are actively being processed or validated */
+  isProcessing?: boolean;
+  /** Currently selected main document ID (controlled). Defaults to first document if omitted. */
   mainDocumentId?: string;
   /** Optional callback when the main document selection changes */
   onSelectMainDocument?: (id: string) => void;
@@ -110,6 +112,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onMoveDocument,
   onReorderDocuments,
   addFiles,
+  isProcessing = false,
   mainDocumentId,
   onSelectMainDocument,
   initialOverlays,
@@ -868,7 +871,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 onDrop={(e) => handleCardDrop(e, index)}
               />
             ))
-          ) : (
+          ) : !isProcessing ? (
             <div
               className="document-tray-empty-zone"
               role="button"
@@ -898,6 +901,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 Supports PDF up to 50MB
               </span>
             </div>
+          ) : null}
+
+          {/* Inline processing indicator during multi-file ingestion */}
+          {isProcessing && (
+            <div
+              className="document-card-loading"
+              aria-label="Validating uploaded files"
+            >
+              <Spinner size="sm" label="Validating..." />
+              <span className="document-card-loading-text">Validating...</span>
+            </div>
           )}
         </div>
 
@@ -918,6 +932,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <Button
           variant="primary"
           size="sm"
+          isLoading={isProcessing}
           leftIcon={<Upload size={14} />}
           style={{ flexShrink: 0 }}
           onClick={() => {
@@ -925,7 +940,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             if (onUploadClick) onUploadClick();
           }}
         >
-          + Add PDFs
+          {isProcessing ? 'Validating...' : '+ Add PDFs'}
         </Button>
       </section>
 
@@ -1139,10 +1154,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               )
             ) : isDocLoading ? (
               <div className="viewport-loading-state">
-                <Spinner size="lg" label={`Loading ${mainDoc.name}...`} />
-                <span className="viewport-loading-text">
-                  Loading {mainDoc.name}...
-                </span>
+                <div className="viewport-loading-card">
+                  <Spinner size="lg" label={`Loading ${mainDoc.name}...`} />
+                  <span className="viewport-loading-text">
+                    Loading {mainDoc.name}...
+                  </span>
+                </div>
               </div>
             ) : docError ? (
               <div className="viewport-error-state">
@@ -1445,7 +1462,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           <div className="pane-header">
             <div className="pane-title-group">
               <span className="pane-title">Result Preview</span>
-              {mainDoc ? (
+              {isGeneratingPdf ? (
+                <Badge variant="primary" size="sm">
+                  <Spinner size="sm" />
+                  Generating PDF...
+                </Badge>
+              ) : mainDoc ? (
                 <Badge variant="success" size="sm" withDot>
                   Live Composite
                 </Badge>
@@ -1605,10 +1627,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               </div>
             ) : isDocLoading ? (
               <div className="viewport-loading-state">
-                <Spinner size="lg" label="Rendering live preview..." />
-                <span className="viewport-loading-text">
-                  Rendering preview...
-                </span>
+                <div className="viewport-loading-card">
+                  <Spinner size="lg" label="Rendering live preview..." />
+                  <span className="viewport-loading-text">
+                    Rendering preview...
+                  </span>
+                </div>
               </div>
             ) : docError ? (
               <div className="viewport-error-state">

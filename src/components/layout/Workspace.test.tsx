@@ -1810,6 +1810,33 @@ describe('Workspace component', () => {
         ).toBeDefined();
       });
     });
+
+    describe('Loading & Processing State Feedback (Phase 11: Task 11.2)', () => {
+      it('renders validating indicator in Document Tray and button when isProcessing is true', () => {
+        render(<Workspace documents={[]} isProcessing={true} />);
+
+        // Button indicates validating state
+        expect(
+          screen.getByRole('button', { name: /validating/i }),
+        ).toBeDefined();
+
+        // Document Tray loading card
+        expect(screen.getByLabelText('Validating uploaded files')).toBeDefined();
+        expect(
+          screen.getAllByText('Validating...').length,
+        ).toBeGreaterThanOrEqual(2);
+      });
+
+      it('displays pulse loading card in viewport when document is loading', () => {
+        const doc = makeDoc({ id: 'main-loading', name: 'loading-doc.pdf' });
+        const { container } = render(<Workspace documents={[doc]} />);
+
+        expect(
+          screen.getAllByText(/loading loading-doc\.pdf\.\.\./i).length,
+        ).toBeGreaterThanOrEqual(1);
+        expect(container.querySelector('.viewport-loading-card')).toBeDefined();
+      });
+    });
   });
 });
 

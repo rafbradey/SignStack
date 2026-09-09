@@ -7,6 +7,7 @@ export default function App() {
   const {
     documents,
     validationErrors,
+    isProcessing,
     addFiles,
     removeDocument,
     moveDocument,
@@ -58,6 +59,7 @@ export default function App() {
         <Workspace
           documents={documents}
           addFiles={addFiles}
+          isProcessing={isProcessing}
           onRemoveDocument={removeDocument}
           onMoveDocument={moveDocument}
           onReorderDocuments={reorderDocuments}
