@@ -1674,6 +1674,99 @@ describe('Workspace component', () => {
         expect(prevPageBtn.disabled).toBe(true);
       });
     });
+
+    describe('Client-Side PDF Generation & Download (Phase 9: Task 9.3)', () => {
+      it('disables the Download PDF button when no document is loaded', () => {
+        render(<Workspace documents={[]} />);
+
+        const downloadBtn = screen.getByRole('button', { name: /download pdf/i }) as HTMLButtonElement;
+        expect(downloadBtn.disabled).toBe(true);
+      });
+
+      it('enables the Download PDF button when a main document is loaded', () => {
+        const doc = makeDoc({ id: 'main-1', name: 'agreement.pdf' });
+        render(<Workspace documents={[doc]} />);
+
+        const downloadBtn = screen.getByRole('button', { name: /download pdf/i }) as HTMLButtonElement;
+        expect(downloadBtn.disabled).toBe(false);
+      });
+
+      it('calls generatePdf and downloadPdfBlob when Download PDF button is clicked', async () => {
+        const docMain = makeDoc({ id: 'main-1', name: 'agreement.pdf' });
+        const docOverlay = makeDoc({ id: 'sig-1', name: 'sig.pdf' });
+        const onGenerateSuccess = vi.fn();
+
+        const pdfServices = await import('@/services/pdf');
+        const mockBlob = new Blob(['mock-pdf'], { type: 'application/pdf' });
+        const generatePdfSpy = vi.spyOn(pdfServices, 'generatePdf').mockResolvedValue({
+          blob: mockBlob,
+          bytes: new Uint8Array([1, 2, 3]),
+          filename: 'agreement_signed.pdf',
+        });
+        const downloadBlobSpy = vi.spyOn(pdfServices, 'downloadPdfBlob').mockImplementation(() => {});
+
+        render(
+          <Workspace
+            documents={[docMain, docOverlay]}
+            onGeneratePdfSuccess={onGenerateSuccess}
+          />,
+        );
+
+        const downloadBtn = screen.getByRole('button', { name: /download pdf/i });
+        fireEvent.click(downloadBtn);
+
+        await waitFor(() => {
+          expect(generatePdfSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              mainDocument: expect.objectContaining({ id: 'main-1' }),
+            }),
+          );
+          expect(downloadBlobSpy).toHaveBeenCalledWith(mockBlob, 'agreement_signed.pdf');
+          expect(onGenerateSuccess).toHaveBeenCalledWith('agreement_signed.pdf');
+        });
+
+        generatePdfSpy.mockRestore();
+        downloadBlobSpy.mockRestore();
+      });
+
+      it('displays error alert when generatePdf rejects with an error', async () => {
+        const docMain = makeDoc({ id: 'main-1', name: 'corrupt.pdf' });
+        const onGenerateError = vi.fn();
+
+        const pdfServices = await import('@/services/pdf');
+        const generatePdfSpy = vi
+          .spyOn(pdfServices, 'generatePdf')
+          .mockRejectedValue(new Error('Corrupted PDF header'));
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        render(
+          <Workspace
+            documents={[docMain]}
+            onGeneratePdfError={onGenerateError}
+          />,
+        );
+
+        const downloadBtn = screen.getByRole('button', { name: /download pdf/i });
+        fireEvent.click(downloadBtn);
+
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toBeDefined();
+          expect(screen.getByText('Corrupted PDF header')).toBeDefined();
+          expect(onGenerateError).toHaveBeenCalledWith('Corrupted PDF header');
+        });
+
+        // Dismiss alert
+        const dismissBtn = screen.getByRole('button', { name: /dismiss alert/i });
+        fireEvent.click(dismissBtn);
+
+        await waitFor(() => {
+          expect(screen.queryByRole('alert')).toBeNull();
+        });
+
+        generatePdfSpy.mockRestore();
+        consoleErrorSpy.mockRestore();
+      });
+    });
   });
 });
 

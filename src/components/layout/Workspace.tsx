@@ -31,7 +31,12 @@ import {
 import { clamp, calculateOverlayViewportPosition } from '@/utils';
 import { DocumentCard } from './DocumentCard';
 import { PdfPageCanvas, PdfOverlayLayer } from '@/components/pdf';
-import { loadPdfDocument, type PDFDocumentProxy } from '@/services/pdf';
+import {
+  loadPdfDocument,
+  generatePdf,
+  downloadPdfBlob,
+  type PDFDocumentProxy,
+} from '@/services/pdf';
 import './Workspace.css';
 
 const MIN_ZOOM = 0.5; // 50%
@@ -91,6 +96,10 @@ export interface WorkspaceProps {
   onSelectMainDocument?: (id: string) => void;
   /** Optional initial/controlled overlays */
   initialOverlays?: PageOverlay[];
+  /** Optional callback when PDF export completes successfully */
+  onGeneratePdfSuccess?: (filename: string) => void;
+  /** Optional callback when PDF export fails */
+  onGeneratePdfError?: (error: string) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -103,6 +112,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   mainDocumentId,
   onSelectMainDocument,
   initialOverlays,
+  onGeneratePdfSuccess,
+  onGeneratePdfError,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('editor');
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>('split');
@@ -603,6 +614,38 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       return next;
     });
   }, []);
+
+  // PDF Generation / Export (Phase 9)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfExportError, setPdfExportError] = useState<string | null>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!mainDoc || isGeneratingPdf) return;
+
+    setIsGeneratingPdf(true);
+    setPdfExportError(null);
+
+    try {
+      const result = await generatePdf({
+        mainDocument: mainDoc,
+        overlays,
+        documents,
+      });
+
+      downloadPdfBlob(result.blob, result.filename);
+      onGeneratePdfSuccess?.(result.filename);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'An unexpected error occurred while generating the PDF. Please try again.';
+      console.error('Failed to generate PDF:', err);
+      setPdfExportError(errorMessage);
+      onGeneratePdfError?.(errorMessage);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const handleEditorKeyDown = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') {
@@ -1419,14 +1462,40 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               <Button
                 variant="primary"
                 size="sm"
+                isLoading={isGeneratingPdf}
                 leftIcon={<Download size={14} />}
-                disabled
-                title="PDF generation available in Phase 9"
+                disabled={!mainDoc}
+                title={
+                  !mainDoc
+                    ? 'Upload a document to download PDF'
+                    : isGeneratingPdf
+                      ? 'Generating PDF...'
+                      : 'Download PDF with embedded overlays'
+                }
+                onClick={handleDownloadPdf}
               >
-                Download PDF
+                {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
               </Button>
             </div>
           </div>
+
+          {pdfExportError && (
+            <div
+              className="pane-alert-banner"
+              style={{
+                padding: 'var(--space-2) var(--space-4)',
+                borderBottom: '1px solid var(--color-border)',
+              }}
+            >
+              <Alert
+                variant="danger"
+                title="Export Failed"
+                onDismiss={() => setPdfExportError(null)}
+              >
+                {pdfExportError}
+              </Alert>
+            </div>
+          )}
 
           <div
             ref={previewViewportRef}
